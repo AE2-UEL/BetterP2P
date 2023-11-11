@@ -6,13 +6,13 @@ import io.netty.buffer.ByteBuf
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage
 
 fun writeMemoryInfo(buf: ByteBuf, info: MemoryInfo) {
-    buf.writeInt(info.selectedIndex)
+    buf.writeLong(info.selectedEntry)
     buf.writeShort(info.frequency.toInt())
     buf.writeInt(info.mode.ordinal)
 }
 
 fun readMemoryInfo(buf: ByteBuf): MemoryInfo {
-    return MemoryInfo(buf.readInt(), buf.readShort(), BetterMemoryCardModes.values()[buf.readInt()])
+    return MemoryInfo(buf.readLong(), buf.readShort(), BetterMemoryCardModes.values()[buf.readInt()])
 }
 
 class C2SUpdateInfo(var info: MemoryInfo = MemoryInfo()) : IMessage {

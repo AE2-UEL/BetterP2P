@@ -1,8 +1,8 @@
 package com.projecturanus.betterp2p.network
 
 import com.projecturanus.betterp2p.util.p2p.P2PCache
-import com.projecturanus.betterp2p.util.p2p.getInfo
 import com.projecturanus.betterp2p.util.p2p.linkP2P
+import com.projecturanus.betterp2p.util.p2p.toInfo
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -20,10 +20,10 @@ class ServerLinkP2PHandler : IMessageHandler<C2SLinkP2P, IMessage?> {
             status.listP2P[message.input] = result.first
             status.listP2P[message.output] = result.second
             GlobalScope.launch {
-                ModNetwork.channel.sendTo(S2CRefreshInfo(listOf(result.first.getInfo(message.input), result.second.getInfo(message.output))), ctx.serverHandler.player)
+                ModNetwork.channel.sendTo(S2CRefreshInfo(status.listP2P.values.map { it.toInfo() }), ctx.serverHandler.player)
                 // It takes time before a channel is assigned to the new tunnel
                 delay(2000)
-                ModNetwork.channel.sendTo(S2CRefreshInfo(listOf(result.first.getInfo(message.input), result.second.getInfo(message.output))), ctx.serverHandler.player)
+                ModNetwork.channel.sendTo(S2CRefreshInfo(status.listP2P.values.map { it.toInfo() }), ctx.serverHandler.player)
             }
         }
         return null

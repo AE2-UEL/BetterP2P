@@ -32,21 +32,14 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     private val tableX = 9
     private val tableY = 19
 
-    private var selectedIndex = -1
-
     private lateinit var scrollBar: WidgetScrollBar
     private lateinit var searchBar: MEGuiTextField
     private lateinit var renameBar: IGuiTextField
 
-    private val infos = msg.infos.map(::InfoWrapper).toMutableList()
+    private val infos = InfoList(msg.infos.map(::InfoWrapper), ::searchText)
 
-    private var sortedInfo = infos.toList()
-
-    private var selectedInfo: InfoWrapper?
-        get() = infos.find { it.index == selectedIndex }
-        set(value) {
-            selectedIndex = value?.index ?: -1
-        }
+    private val searchText: String
+        get() = searchBar.text
 
     private val widgetDevices: List<WidgetP2PDevice>
 //    private var infoOnScreen: List<InfoWrapper>
@@ -57,25 +50,14 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     private var modeString = getModeString()
     private val modeButton by lazy { GuiButton(0, guiLeft + 8, guiTop + 190, 256, 20, modeString) }
 
-    init {
-        val tmp = mutableSetOf<String>()
-        sortedInfo = sortedInfo.filter { tmp.add(it.toString()) }
-        selectedIndex = mapSelected(msg.memoryInfo.selectedIndex)
-        sortedInfo.sortedBy { if (it.index == selectedIndex) {
-            -2 // front
-        } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency && !it.output) {
-            -3 // input in beginning
-        } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency) {
-            -1
-        } else {
-            it.frequency + Short.MAX_VALUE
-        }
-        }
-        selectInfo(selectedIndex)
+    private val selectedInfo: InfoWrapper?
+        get() = infos.selectedInfo
 
+    init {
+        infos.select(msg.memoryInfo.selectedEntry)
         val list = mutableListOf<WidgetP2PDevice>()
         for (i in 0..3) {
-            list += WidgetP2PDevice(::selectedInfo, ::mode, { sortedInfo.getOrNull(i + scrollBar.currentScroll) }, 0, 0)
+            list += WidgetP2PDevice(::selectedInfo, ::mode, { infos.filtered.getOrNull(i + scrollBar.currentScroll) }, 0, 0)
         }
         widgetDevices = list.toList()
     }
@@ -103,73 +85,26 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
             widgetDevices[i].y = guiTop + tableY + 42 * i
         }
         searchBar.text = ClientCache.searchText
-        reGenInfoFromText()
-    }
-
-    private fun reGenInfoFromText() {
-        if (searchBar.text.isEmpty()) {
-            sortInfo()
-        } else {
-            val tmp = mutableSetOf<String>()
-            var tmpInfo = infos.filter {
-                it.frequency.toString(16).contains(searchBar.text.toUpperCase()) ||
-                    it.frequency.toString(16).format().contains(searchBar.text.toUpperCase()) ||
-                    it.name.toLowerCase().contains(searchBar.text.toLowerCase())
-            }
-            sortedInfo = tmpInfo.filter {
-                tmp.add(it.toString())
-            }.sortedBy {
-                if (it.index == selectedIndex) {
-                    -2 // Put the selected p2p in the front
-                } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency && !it.output) {
-                    -3 // Put input in the beginning
-                } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency) {
-                    -1 // Put same frequency in the front
-                } else {
-                    it.frequency + Short.MAX_VALUE
-                }
-            }
-        }
-    }
-
-    private fun sortInfo() {
-        val tmp = mutableSetOf<String>()
-        sortedInfo = infos.filter {
-            tmp.add(it.toString())
-        }
-        sortedInfo = sortedInfo.sortedBy {
-            if (it.index == selectedIndex) {
-                -2 // Put the selected p2p in the front
-            } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency && !it.output) {
-                -3 // Put input in the beginning
-            } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency) {
-                -1 // Put same frequency in the front
-            } else {
-                it.frequency + Short.MAX_VALUE
-            }
-        }
+        infos.refresh()
+        checkInfo()
+        refreshOverlay()
     }
 
     private fun checkInfo() {
-        infos.forEach { it.error = false }
-        infos.groupBy { it.frequency }.filter { it.value.none { x -> !x.output } }.forEach { it.value.forEach { info ->
+        infos.filtered.forEach { it.error = false }
+        infos.filtered.groupBy { it.frequency }.filter { it.value.none { x -> !x.output } }.forEach { it.value.forEach { info ->
             info.error = true
         } }
     }
 
-    fun refreshInfo(infos: List<P2PInfo>, reGenInfo: Boolean = false) {
-        infos.forEach { this.infos[it.index] = InfoWrapper(it) }
+    fun refreshInfo(infos: List<P2PInfo>) {
+        this.infos.rebuild(infos.map(::InfoWrapper))
         checkInfo()
-        if (reGenInfo) {
-            reGenInfoFromText()
-        } else {
-            sortInfo()
-        }
         refreshOverlay()
     }
 
     private fun syncMemoryInfo() {
-        ModNetwork.channel.sendToServer(C2SUpdateInfo(MemoryInfo(selectedIndex, selectedInfo?.frequency ?: 0, mode)))
+        ModNetwork.channel.sendToServer(C2SUpdateInfo(MemoryInfo(infos.selectedEntry, selectedInfo?.frequency ?: 0, mode)))
     }
 
     private fun drawInformation() {
@@ -229,19 +164,11 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         return I18n.format("gui.advanced_memory_card.mode.${mode.name.toLowerCase(Locale.getDefault())}")
     }
 
-    private fun findInput(frequency: Short) =
-        infos.find { it.frequency == frequency && !it.output }
+    private fun findInput(frequency: Short?) =
+        infos.filtered.find { it.frequency == frequency && !it.output }
 
-    private fun mapSelected(index: Int) : Int {
-        return if (index >= 0) {
-            sortedInfo.find {
-                it.toString() == infos[index].toString()
-            }?.index ?: -1
-        } else -1
-    }
-
-    private fun selectInfo(index: Int) {
-        selectedIndex = mapSelected(index)
+    private fun selectInfo(hash: Long) {
+        infos.select(hash)
         syncMemoryInfo()
         refreshOverlay()
     }
@@ -255,11 +182,11 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
             ClientCache.selectedFacing = selectedInfo?.facing
         }
         ClientCache.positions.clear()
-        ClientCache.positions.addAll(sortedInfo.filter { it.frequency == selectedInfo?.frequency && it != selectedInfo }.map { it.pos to it.facing })
+        ClientCache.positions.addAll(infos.sorted.filter { it.frequency == selectedInfo?.frequency && it != selectedInfo }.map { it.pos to it.facing })
     }
 
     private fun onSelectButtonClicked(info: InfoWrapper) {
-        selectInfo(info.index)
+        selectInfo(info.code)
     }
 
     private fun onRenameButtonClicked(info: InfoWrapper, index: Int) {
@@ -288,7 +215,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         if (renameBar.info != null && renameBar.info.name != renameBar.text) {
             val info: InfoWrapper = renameBar.info
             renameBar.text = renameBar.text.trim()
-            ModNetwork.channel.sendToServer(C2SP2PTunnelInfo(P2PTunnelInfo(info.pos, info.world, info.facing, renameBar.text)))
+            ModNetwork.channel.sendToServer(C2SP2PTunnelInfo(P2PTunnelInfo(info.pos, info.dim, info.facing, renameBar.text)))
         }
 
         renameBar.visible = false
@@ -298,20 +225,20 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     private fun onBindButtonClicked(info: InfoWrapper) {
-        if (selectedIndex == -1) return
+        if (infos.selectedEntry == NONE) return
         when (mode) {
             BetterMemoryCardModes.INPUT -> {
-                BetterP2P.logger.debug("Bind ${info.index} as input")
-                ModNetwork.channel.sendToServer(C2SLinkP2P(info.index, selectedIndex))
+                BetterP2P.logger.debug("Bind ${info.code} as input")
+                ModNetwork.channel.sendToServer(C2SLinkP2P(info.code, infos.selectedEntry))
             }
             BetterMemoryCardModes.OUTPUT -> {
-                BetterP2P.logger.debug("Bind ${info.index} as output")
-                ModNetwork.channel.sendToServer(C2SLinkP2P(selectedIndex, info.index))
+                BetterP2P.logger.debug("Bind ${info.code} as output")
+                ModNetwork.channel.sendToServer(C2SLinkP2P(infos.selectedEntry, info.code))
             }
             BetterMemoryCardModes.COPY -> {
-                val input = selectedInfo?.frequency?.let { findInput(it) }
+                val input = findInput(selectedInfo?.frequency)
                 if (input != null)
-                    ModNetwork.channel.sendToServer(C2SLinkP2P(input.index, info.index))
+                    ModNetwork.channel.sendToServer(C2SLinkP2P(input.code, info.code))
             }
         }
     }
@@ -344,7 +271,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         renameBar.mouseClicked(mouseX, mouseY, mouseButton)
         if (mouseButton == 1 && searchBar.isMouseIn(mouseX, mouseY)) {
             this.searchBar.text = ""
-            reGenInfoFromText()
+            infos.refilter()
         }
         super.mouseClicked(mouseX, mouseY, mouseButton)
     }
@@ -408,7 +335,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         }
         else if (searchBar.isFocused && !(typedChar == ' ' && searchBar.text.isEmpty())) {
             searchBar.textboxKeyTyped(typedChar, keyCode)
-            reGenInfoFromText()
+            infos.refilter()
         }
         return super.keyTyped(typedChar, keyCode)
     }

@@ -7,11 +7,13 @@ import appeng.parts.p2p.PartP2PTunnel
 import com.projecturanus.betterp2p.capability.MemoryInfo
 import com.projecturanus.betterp2p.client.ClientCache
 import com.projecturanus.betterp2p.network.ModNetwork
+import com.projecturanus.betterp2p.network.NONE
 import com.projecturanus.betterp2p.network.S2CListP2P
+import com.projecturanus.betterp2p.network.hashP2P
 import com.projecturanus.betterp2p.util.getPart
 import com.projecturanus.betterp2p.util.p2p.P2PCache
 import com.projecturanus.betterp2p.util.p2p.P2PStatus
-import com.projecturanus.betterp2p.util.p2p.getInfo
+import com.projecturanus.betterp2p.util.p2p.toInfo
 import net.minecraft.client.resources.I18n
 import net.minecraft.client.util.ITooltipFlag
 import net.minecraft.entity.Entity
@@ -27,6 +29,7 @@ import net.minecraft.util.EnumHand
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.IBlockAccess
 import net.minecraft.world.World
+import net.minecraftforge.common.util.Constants
 import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
@@ -44,7 +47,7 @@ object ItemAdvancedMemoryCard : Item() {
     private fun sendStatus(status: P2PStatus, info: MemoryInfo, player: EntityPlayerMP) {
         P2PCache.statusMap[player.uniqueID] = status
         ModNetwork.channel.sendTo(
-            S2CListP2P(status.listP2P.mapIndexed { index, p2p -> p2p.getInfo(index) }, info),
+            S2CListP2P(status.listP2P.values.map { p2p -> p2p.toInfo() }, info),
             player
         )
     }
@@ -75,17 +78,18 @@ object ItemAdvancedMemoryCard : Item() {
                 val stack = player.getHeldItem(hand)
                 val info = getInfo(stack)
                 if (part is PartP2PTunnel<*>) {
-                    val status = P2PStatus(player, 0, part.gridNode.grid, part)
-                    info.selectedIndex = status.listP2P.indexOfFirst { it == status.targetP2P }
+                    val status = P2PStatus(player, part.gridNode.grid, part)
+                    val p2p = status.listP2P.values.first { it == status.targetP2P }
+                    info.selectedEntry = hashP2P(p2p)
                     writeInfo(stack, info)
 
                     sendStatus(status, info, player as EntityPlayerMP)
                     return EnumActionResult.SUCCESS
                 } else {
                     val node = te.getGridNode(AEPartLocation.fromFacing(side))!!
-                    info.selectedIndex = -1
+                    info.selectedEntry = NONE
                     writeInfo(stack, info)
-                    sendStatus(P2PStatus(player, 0, node.grid), info, player as EntityPlayerMP)
+                    sendStatus(P2PStatus(player, node.grid), info, player as EntityPlayerMP)
                     return EnumActionResult.SUCCESS
                 }
             }
@@ -102,9 +106,12 @@ object ItemAdvancedMemoryCard : Item() {
 
         if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
         val compound = stack.tagCompound!!
-        if (!compound.hasKey("selectedIndex")) compound.setInteger("selectedIndex", -1)
+        if (!compound.hasKey("selectedIndex", Constants.NBT.TAG_LONG)) {
+            compound.setLong("selectedIndex", NONE)
+        }
 
-        return MemoryInfo(compound.getInteger("selectedIndex"), compound.getShort("frequency"), BetterMemoryCardModes.values()[compound.getInteger("mode")])
+        return MemoryInfo(compound.getLong("selectedIndex"), compound.getShort("fruequency"), BetterMemoryCardModes.values()[compound.getInteger("mode")])
+
     }
 
     fun writeInfo(stack: ItemStack, info: MemoryInfo) {
@@ -112,7 +119,7 @@ object ItemAdvancedMemoryCard : Item() {
 
         if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
         val compound = stack.tagCompound!!
-        compound.setInteger("selectedIndex", info.selectedIndex)
+        compound.setLong("selectedIndex", info.selectedEntry)
         compound.setShort("frequency", info.frequency)
         compound.setInteger("mode", info.mode.ordinal)
     }

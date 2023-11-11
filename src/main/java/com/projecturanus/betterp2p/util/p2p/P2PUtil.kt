@@ -19,9 +19,9 @@ import net.minecraftforge.common.DimensionManager
 
 val PartP2PTunnel<*>.colorCode: Array<AEColor> get() = Platform.p2p().toColors(this.frequency)
 
-fun linkP2P(player: EntityPlayer, inputIndex: Int, outputIndex: Int, status: P2PStatus) : Pair<PartP2PTunnel<*>, PartP2PTunnel<*>>? {
-    val input = status.listP2P[inputIndex]
-    val output = status.listP2P[outputIndex]
+fun linkP2P(player: EntityPlayer, inputIndex: Long, outputIndex: Long, status: P2PStatus) : Pair<PartP2PTunnel<*>, PartP2PTunnel<*>>? {
+    val input = status.listP2P[inputIndex]!!
+    val output = status.listP2P[outputIndex]!!
 
     val grid: IGrid? = input.gridNode?.grid
     if (grid is ISecurityGrid) {
@@ -66,7 +66,6 @@ fun updateP2P(tunnel: PartP2PTunnel<*>, frequency: Short, player: EntityPlayer, 
 
     val data = NBTTagCompound()
     val p2pItem: ItemStack = tunnel.getItemStack(PartItemStack.WRENCH)
-    val type: String = p2pItem.translationKey
     tunnel.outputProperty = output
     tunnel.setCustomName(name)
 
@@ -111,5 +110,5 @@ var PartP2PTunnel<*>.outputProperty
 val PartP2PTunnel<*>.hasChannel
     get() = isPowered && isActive
 
-fun PartP2PTunnel<*>.getInfo(index: Int)
-    = P2PInfo(index, frequency, location.pos, location.world.provider.dimension ,side.facing, customInventoryName, isOutput, hasChannel)
+fun PartP2PTunnel<*>.toInfo()
+    = P2PInfo(frequency, location.pos, location.world.provider.dimension ,side.facing, customInventoryName, isOutput, hasChannel)

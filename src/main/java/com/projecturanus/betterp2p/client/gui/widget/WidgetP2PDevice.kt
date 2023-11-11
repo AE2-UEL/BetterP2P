@@ -12,9 +12,9 @@ import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
 import net.minecraftforge.common.DimensionManager
 import java.awt.Color
-import kotlin.reflect.KMutableProperty0
+import kotlin.reflect.KProperty0
 
-class WidgetP2PDevice(private val selectedInfoProperty: KMutableProperty0<InfoWrapper?>, val modeSupplier: () -> BetterMemoryCardModes, val infoSupplier: () -> InfoWrapper?, var x: Int, var y: Int): Widget() {
+class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>, val modeSupplier: () -> BetterMemoryCardModes, val infoSupplier: () -> InfoWrapper?, var x: Int, var y: Int): Widget() {
     private val outputColor = 0x4566ccff
     private val selectedColor = 0x4545DA75
     private val errorColor = 0x45DA4527
@@ -25,17 +25,14 @@ class WidgetP2PDevice(private val selectedInfoProperty: KMutableProperty0<InfoWr
 
     var renderNameTextfield = true
 
-    private var selectedInfo: InfoWrapper?
+    private val selectedInfo: InfoWrapper?
         get() = selectedInfoProperty.get()
-        set(value) {
-            selectedInfoProperty.set(value)
-        }
 
     fun render(gui: GuiScreen, mouseX: Int, mouseY: Int, partialTicks: Float) {
         val info = infoSupplier()
         if (info != null) {
             val fontRenderer = gui.mc.fontRenderer
-            if (selectedInfo?.index == info.index)
+            if (selectedInfo?.code == info.code)
                 GuiScreen.drawRect(x, y, x + rowWidth, y + rowHeight, selectedColor)
             else if (info.error) {
                 // P2P output without an input
@@ -57,12 +54,12 @@ class WidgetP2PDevice(private val selectedInfoProperty: KMutableProperty0<InfoWr
             } else {
                 fontRenderer.drawString(I18n.format("gui.advanced_memory_card.name", ""), x + 24, y + 21, 0)
             }
-            fontRenderer.drawString(getExtraInfo(info.world, info.pos, info.facing), x + 24, y + 30, 0)
+            fontRenderer.drawString(getExtraInfo(info.dim, info.pos, info.facing), x + 24, y + 30, 0)
 
             if (selectedInfo == null) {
                 info.bindButton.enabled = false
                 info.selectButton.enabled = true
-            } else if (info.index != selectedInfo?.index) {
+            } else if (info.code != selectedInfo?.code) {
                 info.bindButton.enabled = true
                 info.selectButton.enabled = true
 

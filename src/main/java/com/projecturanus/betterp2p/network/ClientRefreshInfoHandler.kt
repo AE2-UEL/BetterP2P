@@ -14,7 +14,7 @@ class ClientRefreshInfoHandler : IMessageHandler<S2CRefreshInfo, IMessage?> {
         Minecraft.getMinecraft().addScheduledTask {
             val gui = Minecraft.getMinecraft().currentScreen
             if (gui is GuiAdvancedMemoryCard) {
-                gui.refreshInfo(message.infos, true)
+                gui.refreshInfo(message.infos)
             }
         }
         return null

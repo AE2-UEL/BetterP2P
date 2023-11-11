@@ -2,18 +2,22 @@ package com.projecturanus.betterp2p.client.gui
 
 import appeng.util.Platform
 import com.projecturanus.betterp2p.network.P2PInfo
+import com.projecturanus.betterp2p.network.hashP2P
 import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.resources.I18n
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
+import java.util.*
 
 class InfoWrapper(info: P2PInfo) {
     // Basic information
-    val index: Int = info.index
+    val code: Long by lazy {
+        hashP2P(pos, facing.ordinal, dim)
+    }
     val frequency: Short = info.frequency
     val hasChannel = info.hasChannel
     val pos: BlockPos = info.pos
-    val world: Int = info.world
+    val dim: Int = info.world
     val facing: EnumFacing = info.facing
     val description: String
     val output: Boolean = info.output
@@ -40,7 +44,38 @@ class InfoWrapper(info: P2PInfo) {
         }
     }
 
-    override fun toString(): String {
-        return "${pos.x}_${pos.y}_${pos.z}_${world}_${facing}"
+    override fun hashCode(): Int {
+        return code.hashCode()
     }
+
+    override fun equals(other: Any?): Boolean {
+        return if (other is InfoWrapper) {
+            this.pos == other.pos &&
+            this.dim == other.dim &&
+            this.facing == other.facing
+        } else {
+            false
+        }
+    }
+}
+
+fun Short.toHexString(): String {
+    var tmp: Short = this
+    var hex = String()
+    while (tmp != 0.toShort()) {
+        hex += Integer.toHexString((tmp % 16).toInt())
+        tmp = (tmp / 16).toShort()
+    }
+    return hex.toUpperCase(Locale.getDefault()).reversed()
+}
+
+fun String.format4(): String {
+    val format = StringBuilder()
+    for (index in this.indices) {
+        if (index % 4 == 0 && index != 0) {
+            format.append(" ")
+        }
+        format.append(this[index])
+    }
+    return format.toString()
 }
