@@ -91,6 +91,8 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
             widgetDevices[i].x = guiLeft + tableX
             widgetDevices[i].y = guiTop + tableY + 33 * i
         }
+        searchBar.text = ClientCache.searchText
+        reGenInfoFromText()
     }
 
     private fun reGenInfoFromText() {
@@ -163,6 +165,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     override fun onGuiClosed() {
+        ClientCache.searchText = searchBar.text
         saveP2PChannel()
         syncMemoryInfo()
         ModNetwork.channel.sendToServer(C2SCloseGui())

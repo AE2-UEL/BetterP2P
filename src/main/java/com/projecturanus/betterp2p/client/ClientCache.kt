@@ -7,10 +7,12 @@ object ClientCache {
     val positions = mutableListOf<Pair<BlockPos, EnumFacing>>()
     var selectedPosition: BlockPos? = null
     var selectedFacing: EnumFacing? = null
+    var searchText: String = ""
 
     fun clear() {
         positions.clear()
         selectedPosition = null
         selectedFacing = null
+        searchText = ""
     }
 }
