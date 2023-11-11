@@ -1,10 +1,16 @@
 package com.projecturanus.betterp2p.client.gui.widget
 
+import appeng.me.GridNode
+import appeng.parts.p2p.PartP2PTunnelME
+import appeng.tile.networking.TileCableBus
 import appeng.util.Platform
 import com.projecturanus.betterp2p.client.gui.InfoWrapper
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.resources.I18n
+import net.minecraft.util.EnumFacing
+import net.minecraft.util.math.BlockPos
+import net.minecraftforge.common.DimensionManager
 import java.awt.Color
 import kotlin.reflect.KMutableProperty0
 
@@ -15,7 +21,7 @@ class WidgetP2PDevice(private val selectedInfoProperty: KMutableProperty0<InfoWr
     private val inactiveColor = 0x45FFEA05
 
     private val rowWidth = 254
-    private val rowHeight = 32
+    private val rowHeight = 41
 
     var renderNameTextfield = true
 
@@ -51,6 +57,7 @@ class WidgetP2PDevice(private val selectedInfoProperty: KMutableProperty0<InfoWr
             } else {
                 fontRenderer.drawString(I18n.format("gui.advanced_memory_card.name", ""), x + 24, y + 21, 0)
             }
+            fontRenderer.drawString(getExtraInfo(info.world, info.pos, info.facing), x + 24, y + 30, 0)
 
             if (selectedInfo == null) {
                 info.bindButton.enabled = false
@@ -125,4 +132,15 @@ class WidgetP2PDevice(private val selectedInfoProperty: KMutableProperty0<InfoWr
         }
     }
 
+}
+
+fun getExtraInfo(world: Int, pos: BlockPos, face: EnumFacing): String {
+    val tile = DimensionManager.getWorld(world)?.getTileEntity(pos)
+    if (tile is TileCableBus) {
+        val used = ((tile.getPart(face) as? PartP2PTunnelME)?.externalFacingNode as? GridNode)?.usedChannels()
+        if (used != null) {
+            return I18n.format("gui.advanced_memory_card.extra.channel", used)
+        }
+    }
+    return I18n.format("gui.advanced_memory_card.extra.none")
 }
