@@ -48,6 +48,10 @@ repositories {
             includeGroup "curse.maven"
         }
     }
+    maven {
+        name = "Progwml6 maven"
+        url = "https://dvs1.progwml6.com/files/maven"
+    }
 }
 
 compileKotlin {
@@ -66,8 +70,10 @@ minecraft {
 }
 
 dependencies {
-    implementation "curse.maven:ae2-extended-life-570458:3755096"
+    implementation "curse.maven:ae2-extended-life-570458:4851091"
 	implementation "net.shadowfacts:Forgelin:1.8.4"
+
+    runtime "mezz.jei:jei_1.12.2:4.16.1.302"
 }
 
 sourceJar {

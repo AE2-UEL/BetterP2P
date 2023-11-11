@@ -10,7 +10,12 @@ fun readInfo(buf: ByteBuf): P2PInfo {
     val freq = buf.readShort()
     val pos = BlockPos.fromLong(buf.readLong())
     val facing = EnumFacing.values()[buf.readInt()]
-    return P2PInfo(index, freq, pos, facing, buf.readBoolean(), buf.readBoolean())
+    val nameLength = buf.readShort() - 1
+    var name = ""
+    for (i in 0..nameLength) {
+        name += buf.readChar()
+    }
+    return P2PInfo(index, freq, pos, facing, name, buf.readBoolean(), buf.readBoolean())
 }
 
 fun writeInfo(buf: ByteBuf, info: P2PInfo) {
@@ -18,6 +23,10 @@ fun writeInfo(buf: ByteBuf, info: P2PInfo) {
     buf.writeShort(info.frequency.toInt())
     buf.writeLong(info.pos.toLong())
     buf.writeInt(info.facing.index)
+    buf.writeShort(info.name.length)
+    for (c in info.name) {
+        buf.writeChar(c.toInt())
+    }
     buf.writeBoolean(info.output)
     buf.writeBoolean(info.hasChannel)
 }

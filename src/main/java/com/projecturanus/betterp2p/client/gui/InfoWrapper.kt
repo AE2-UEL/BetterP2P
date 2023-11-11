@@ -16,6 +16,7 @@ class InfoWrapper(info: P2PInfo) {
     val facing: EnumFacing = info.facing
     val description: String
     val output: Boolean = info.output
+    val name: String = info.name
     var error: Boolean = false
 
     // Widgets
