@@ -24,7 +24,7 @@ fun linkP2P(player: EntityPlayer, inputIndex: Int, outputIndex: Int, status: P2P
 
     val grid: IGrid? = input.gridNode?.grid
     if (grid is ISecurityGrid) {
-        if (!grid.hasPermission(player, SecurityPermissions.BUILD)) {
+        if (!grid.hasPermission(player, SecurityPermissions.BUILD) || !grid.hasPermission(player, SecurityPermissions.SECURITY)) {
             return null
         }
     }
