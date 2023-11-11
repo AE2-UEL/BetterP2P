@@ -12,26 +12,22 @@ import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import com.projecturanus.betterp2p.network.*
 import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.gui.GuiScreen
+import net.minecraft.client.renderer.Tessellator
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import net.minecraft.client.resources.I18n
 import net.minecraft.util.ResourceLocation
 import org.lwjgl.input.Mouse
+import org.lwjgl.opengl.GL11.GL_QUADS
 import java.util.*
 
 class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
-    private val outputColor = 0x4566ccff
-    private val selectedColor = 0x4545DA75
-    private val errorColor = 0x45DA4527
-    private val inactiveColor = 0x45FFEA05
-
-    private val xSize = 238
+    private val xSize = 288
     private val ySize = 206
     private val guiLeft: Int by lazy { (width - this.xSize) / 2 }
     private val guiTop: Int by lazy { (height - this.ySize) / 2 }
 
     private val tableX = 9
     private val tableY = 19
-    private val rowWidth = 203
-    private val rowHeight = 22
 
     private var selectedIndex = -1
 
@@ -55,7 +51,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
 
     private var mode = msg.memoryInfo.mode
     private var modeString = getModeString()
-    private val modeButton by lazy { GuiButton(0, guiLeft + 8, guiTop + 154, 205, 20, modeString) }
+    private val modeButton by lazy { GuiButton(0, guiLeft + 8, guiTop + 154, 256, 20, modeString) }
 
     init {
         selectInfo(msg.memoryInfo.selectedIndex)
@@ -73,12 +69,12 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         super.initGui()
         checkInfo()
         scrollBar = WidgetScrollBar()
-        searchBar = MEGuiTextField(fontRenderer, guiLeft + 148, guiTop + 5, 65, 10)
+        searchBar = MEGuiTextField(fontRenderer, guiLeft + 198, guiTop + 5, 65, 10)
         searchBar.maxStringLength = 25
         searchBar.setTextColor(0xFFFFFF)
         searchBar.visible = true
         searchBar.enableBackgroundDrawing = false
-        scrollBar.displayX = guiLeft + 218
+        scrollBar.displayX = guiLeft + 268
         scrollBar.displayY = guiTop + 19
         scrollBar.height = 114
         scrollBar.setRange(0, infos.size.coerceIn(0..(infos.size - 4).coerceAtLeast(0)), 23)
@@ -90,7 +86,11 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     private fun reGenInfoFromText() {
-        var tmpInfo = infos.filter { it.frequency.toString(16).contains(searchBar.text) || it.frequency.toString(16).format().contains(searchBar.text) || it.name.contains(searchBar.text) }
+        var tmpInfo = infos.filter {
+            it.frequency.toString(16).contains(searchBar.text.toUpperCase()) ||
+                it.frequency.toString(16).format().contains(searchBar.text.toUpperCase()) ||
+                it.name.toLowerCase().contains(searchBar.text.toLowerCase())
+        }
         if (searchBar.text.isEmpty()) {
             tmpInfo = infos
         }
@@ -280,6 +280,20 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     private fun drawBackground() {
         bindTexture(MODID, "textures/gui/advanced_memory_card.png")
         drawTexturedModalRect(guiLeft, guiTop, 0, 0, this.xSize, this.ySize)
+
+        val tessellator = Tessellator.getInstance()
+        val bufferBuilder = tessellator.buffer;
+        val f = 1f / this.xSize.toFloat()
+        val f1 = 1f / this.ySize.toFloat()
+        val u = 0
+        val v = 0
+
+        bufferBuilder.begin(GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+        bufferBuilder.pos(guiLeft.toDouble(), (guiTop + this.ySize).toDouble(), 0.0).tex((u.toFloat() * f).toDouble(), ((v + this.ySize).toFloat() * f1).toDouble()).endVertex()
+        bufferBuilder.pos((guiLeft + this.xSize).toDouble(), (guiTop + this.ySize).toDouble(), 0.0).tex(((u + xSize).toFloat() * f).toDouble(), ((v + this.ySize).toFloat() * f1).toDouble()).endVertex()
+        bufferBuilder.pos((guiLeft + this.xSize).toDouble(), guiTop.toDouble(), 0.0).tex(((u + xSize).toFloat() * f).toDouble(), (v.toFloat() * f1).toDouble()).endVertex()
+        bufferBuilder.pos(guiLeft.toDouble(), guiTop.toDouble(), 0.0).tex((u.toFloat() * f).toDouble(), (v.toFloat() * f1).toDouble()).endVertex()
+        tessellator.draw()
     }
 
     override fun doesGuiPauseGame(): Boolean {
