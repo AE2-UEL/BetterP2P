@@ -15,6 +15,7 @@ import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
 import net.minecraft.util.EnumHand
+import net.minecraftforge.common.DimensionManager
 
 val PartP2PTunnel<*>.colorCode: Array<AEColor> get() = Platform.p2p().toColors(this.frequency)
 
@@ -111,4 +112,4 @@ val PartP2PTunnel<*>.hasChannel
     get() = isPowered && isActive
 
 fun PartP2PTunnel<*>.getInfo(index: Int)
-    = P2PInfo(index, frequency, location.pos, side.facing, customInventoryName, isOutput, hasChannel)
+    = P2PInfo(index, frequency, location.pos, location.world.provider.dimension ,side.facing, customInventoryName, isOutput, hasChannel)

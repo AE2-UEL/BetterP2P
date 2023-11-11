@@ -11,8 +11,13 @@ import net.minecraftforge.fml.relauncher.SideOnly
 class ClientOpenGuiHandler : IMessageHandler<S2CListP2P, IMessage?> {
     @SideOnly(Side.CLIENT)
     override fun onMessage(message: S2CListP2P, ctx: MessageContext): IMessage? {
-        Minecraft.getMinecraft().addScheduledTask {
-            Minecraft.getMinecraft().displayGuiScreen(GuiAdvancedMemoryCard(message))
+        val gui = Minecraft.getMinecraft().currentScreen
+        if(gui is GuiAdvancedMemoryCard) {
+            gui.refreshInfo(message.infos, true)
+        } else {
+            Minecraft.getMinecraft().addScheduledTask {
+                Minecraft.getMinecraft().displayGuiScreen(GuiAdvancedMemoryCard(message))
+            }
         }
         return null
     }

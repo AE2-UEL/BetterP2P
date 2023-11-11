@@ -13,15 +13,17 @@ class InfoWrapper(info: P2PInfo) {
     val frequency: Short = info.frequency
     val hasChannel = info.hasChannel
     val pos: BlockPos = info.pos
+    val world: Int = info.world
     val facing: EnumFacing = info.facing
     val description: String
     val output: Boolean = info.output
-    val name: String = info.name
+    var name: String = info.name
     var error: Boolean = false
 
     // Widgets
     val selectButton = GuiButton(0, 0, 0, 34, 20, I18n.format("gui.advanced_memory_card.select"))
     val bindButton = GuiButton(0, 0, 0, 34, 20, I18n.format("gui.advanced_memory_card.bind"))
+    val renameButton = GuiButton(0, 0, 0, 0, 0, "")
 
     init {
         description = buildString {
