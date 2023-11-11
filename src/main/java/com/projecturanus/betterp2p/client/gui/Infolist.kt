@@ -31,6 +31,8 @@ class InfoList (initList: Collection<InfoWrapper>,
      */
     var filtered: List<InfoWrapper> = listOf()
 
+    private val filter: InfoFilter = InfoFilter()
+
     /**
      * Binding to the search string in the text box
      */
@@ -59,7 +61,7 @@ class InfoList (initList: Collection<InfoWrapper>,
             } else if (it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency) {
                 -1 // Put same frequency in the front
             } else {
-                // Frequencies from highest to lowest
+                // Frequencies from lowest to highest
                 it.frequency + Short.MAX_VALUE
             }
         }
@@ -69,11 +71,35 @@ class InfoList (initList: Collection<InfoWrapper>,
      * Updates the filtered list.
      */
     fun refilter() {
+        filter.updateFilter(searchStr.toLowerCase())
         filtered = sorted.filter {
-            it.frequency.toHexString().contains(searchStr.toUpperCase()) ||
-                it.frequency.toHexString().format4().contains(searchStr.toUpperCase()) ||
-                it.name.toLowerCase().contains(searchStr.toLowerCase()) ||
-                it.code == selectedEntry
+            if (it.code == selectedEntry) {
+                return@filter true
+            }
+            for ((f, strs) in filter.activeFilters) {
+                if(!f.filter(it, strs?.toList())) {
+                    return@filter false
+                }
+            }
+            true
+        }.sortedBy {
+            when {
+                it.code == selectedEntry -> Long.MIN_VALUE + 1
+                it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency && !it.output -> Long.MIN_VALUE
+                it.frequency != 0.toShort() && it.frequency == selectedInfo?.frequency -> Long.MIN_VALUE + 2
+                filter.activeFilters.containsKey(Filter.NAME) -> {
+                    var hits = 0L
+                    var name = it.name
+                    for (f in filter.activeFilters[Filter.NAME]!!) {
+                        if (name.contains(f, true)) {
+                            hits += 1
+                            name = name.replaceFirst(f, "", true)
+                        }
+                    }
+                    -(hits * hits) + name.length
+                }
+                else -> it.frequency + Long.MAX_VALUE
+            }
         }
     }
 

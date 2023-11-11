@@ -42,9 +42,8 @@ fun linkP2P(player: EntityPlayer, inputIndex: Long, outputIndex: Long, status: P
     var frequency = input.frequency
     val cache = input.proxy.p2P
     // TODO reduce changes
-    if (input.frequency.toInt() == 0 || input.isOutput) {
+    if (input.frequency == 0.toShort() || input.isOutput) {
         frequency = cache.newFrequency()
-        updateP2P(input, frequency, player, false, input.customInventoryName)
     }
     if (cache.getInputs(frequency, input.javaClass) != null) {
         val originalInputs = cache.getInputs(frequency, input.javaClass)
@@ -62,9 +61,9 @@ fun linkP2P(player: EntityPlayer, inputIndex: Long, outputIndex: Long, status: P
  */
 fun updateP2P(tunnel: PartP2PTunnel<*>, frequency: Short, player: EntityPlayer, output: Boolean, name: String): PartP2PTunnel<*> {
     val side = tunnel.side
+    val data = NBTTagCompound()
     tunnel.host.removePart(side, true)
 
-    val data = NBTTagCompound()
     val p2pItem: ItemStack = tunnel.getItemStack(PartItemStack.WRENCH)
     tunnel.outputProperty = output
     tunnel.setCustomName(name)
