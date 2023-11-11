@@ -43,23 +43,23 @@ fun linkP2P(player: EntityPlayer, inputIndex: Int, outputIndex: Int, status: P2P
     // TODO reduce changes
     if (input.frequency.toInt() == 0 || input.isOutput) {
         frequency = cache.newFrequency()
-        updateP2P(input, frequency, player, false)
+        updateP2P(input, frequency, player, false, input.customInventoryName)
     }
     if (cache.getInputs(frequency, input.javaClass) != null) {
         val originalInputs = cache.getInputs(frequency, input.javaClass)
         for (originalInput in originalInputs) {
             if (originalInput != input)
-                updateP2P(originalInput, frequency, player, true)
+                updateP2P(originalInput, frequency, player, true, input.customInventoryName)
         }
     }
 
-    return updateP2P(input, frequency, player, false) to updateP2P(output, frequency, player, true)
+    return updateP2P(input, frequency, player, false, input.customInventoryName) to updateP2P(output, frequency, player, true, input.customInventoryName)
 }
 
 /**
  * Due to Applied Energistics' limit
  */
-fun updateP2P(tunnel: PartP2PTunnel<*>, frequency: Short, player: EntityPlayer, output: Boolean): PartP2PTunnel<*> {
+fun updateP2P(tunnel: PartP2PTunnel<*>, frequency: Short, player: EntityPlayer, output: Boolean, name: String): PartP2PTunnel<*> {
     val side = tunnel.side
     tunnel.host.removePart(side, true)
 
@@ -67,6 +67,7 @@ fun updateP2P(tunnel: PartP2PTunnel<*>, frequency: Short, player: EntityPlayer, 
     val p2pItem: ItemStack = tunnel.getItemStack(PartItemStack.WRENCH)
     val type: String = p2pItem.translationKey
     tunnel.outputProperty = output
+    tunnel.setCustomName(name)
 
     p2pItem.writeToNBT(data)
     data.setShort("freq", frequency)
