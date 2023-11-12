@@ -6,6 +6,7 @@ import appeng.core.CreativeTab
 import appeng.parts.p2p.PartP2PTunnel
 import com.projecturanus.betterp2p.capability.MemoryInfo
 import com.projecturanus.betterp2p.client.ClientCache
+import com.projecturanus.betterp2p.client.gui.widget.GuiScale
 import com.projecturanus.betterp2p.network.ModNetwork
 import com.projecturanus.betterp2p.network.NONE
 import com.projecturanus.betterp2p.network.S2CListP2P
@@ -106,11 +107,19 @@ object ItemAdvancedMemoryCard : Item() {
 
         if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
         val compound = stack.tagCompound!!
+        if (!compound.hasKey("gui")) {
+            compound.setByte("gui", GuiScale.DYNAMIC.ordinal.toByte())
+        }
         if (!compound.hasKey("selectedIndex", Constants.NBT.TAG_LONG)) {
             compound.setLong("selectedIndex", NONE)
         }
 
-        return MemoryInfo(compound.getLong("selectedIndex"), compound.getShort("fruequency"), BetterMemoryCardModes.values()[compound.getInteger("mode")])
+        return MemoryInfo(
+            compound.getLong("selectedIndex"),
+            compound.getShort("fruequency"),
+            BetterMemoryCardModes.values()[compound.getInteger("mode")],
+            GuiScale.values()[compound.getByte("gui").toInt()]
+        )
 
     }
 
@@ -122,5 +131,6 @@ object ItemAdvancedMemoryCard : Item() {
         compound.setLong("selectedIndex", info.selectedEntry)
         compound.setShort("frequency", info.frequency)
         compound.setInteger("mode", info.mode.ordinal)
+        compound.setByte("gui", info.gui.ordinal.toByte())
     }
 }

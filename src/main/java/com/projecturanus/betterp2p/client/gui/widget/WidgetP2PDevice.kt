@@ -4,69 +4,90 @@ import appeng.me.GridNode
 import appeng.parts.p2p.PartP2PTunnelME
 import appeng.tile.networking.TileCableBus
 import appeng.util.Platform
-import com.projecturanus.betterp2p.client.gui.InfoWrapper
+import com.projecturanus.betterp2p.client.gui.*
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import net.minecraft.client.gui.GuiScreen
+import net.minecraft.client.renderer.OpenGlHelper
+import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.resources.I18n
 import net.minecraft.util.EnumFacing
+import net.minecraft.util.ResourceLocation
 import net.minecraft.util.math.BlockPos
 import net.minecraftforge.common.DimensionManager
+import org.lwjgl.opengl.GL11
 import java.awt.Color
 import kotlin.reflect.KProperty0
 
-class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>, val modeSupplier: () -> BetterMemoryCardModes, val infoSupplier: () -> InfoWrapper?, var x: Int, var y: Int): Widget() {
-    private val outputColor = 0x4566ccff
-    private val selectedColor = 0x4545DA75
-    private val errorColor = 0x45DA4527
-    private val inactiveColor = 0x45FFEA05
+object P2PEntryConstants {
+    const val HEIGHT = 41
+    const val WIDTH = 254
+    const val OUTPUT_COLOR = 0x4566ccff
+    const val SELECTED_COLOR= 0x4545DA75
+    const val ERROR_COLOR = 0x45DA4527
+    const val INACTIVE_COLOR = 0x45FFEA05
+    const val LEFT_ALIGN = 24
+}
 
-    private val rowWidth = 254
-    private val rowHeight = 41
+class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>, val modeSupplier: () -> BetterMemoryCardModes, val infoSupplier: () -> InfoWrapper?, var x: Int, var y: Int): Widget() {
 
     var renderNameTextfield = true
 
     private val selectedInfo: InfoWrapper?
         get() = selectedInfoProperty.get()
 
-    fun render(gui: GuiScreen, mouseX: Int, mouseY: Int, partialTicks: Float) {
+    fun render(gui: GuiAdvancedMemoryCard, mouseX: Int, mouseY: Int, partialTicks: Float) {
         val info = infoSupplier()
         if (info != null) {
-            val fontRenderer = gui.mc.fontRenderer
-            if (selectedInfo?.code == info.code)
-                GuiScreen.drawRect(x, y, x + rowWidth, y + rowHeight, selectedColor)
-            else if (info.error) {
-                // P2P output without an input
-                GuiScreen.drawRect(x, y, x + rowWidth, y + rowHeight, errorColor)
-            }
-            else if (!info.hasChannel && info.frequency != 0.toShort()) {
+            // draw the background first
+            if (selectedInfo?.code == info.code) {
+                GuiScreen.drawRect(x, y, x + P2PEntryConstants.WIDTH, y + P2PEntryConstants.HEIGHT, P2PEntryConstants.SELECTED_COLOR)
+            } else if (info.error) {
+                // P2P output without an input, or unbound
+                GuiScreen.drawRect(x, y, x + P2PEntryConstants.WIDTH, y + P2PEntryConstants.HEIGHT, P2PEntryConstants.ERROR_COLOR)
+            } else if (!info.hasChannel && info.frequency != 0.toShort()) {
                 // No channel
-                GuiScreen.drawRect(x, y, x + rowWidth, y + rowHeight, inactiveColor)
-            }
-            else if (selectedInfo?.frequency == info.frequency && info.frequency != 0.toShort()) {
+                GuiScreen.drawRect(x, y, x + P2PEntryConstants.WIDTH, y + P2PEntryConstants.HEIGHT, P2PEntryConstants.INACTIVE_COLOR)
+            } else if (selectedInfo?.frequency == info.frequency && info.frequency != 0.toShort()) {
                 // Show same frequency
-                GuiScreen.drawRect(x, y, x + rowWidth, y + rowHeight, outputColor)
+                GuiScreen.drawRect(x, y, x + P2PEntryConstants.WIDTH, y + P2PEntryConstants.HEIGHT, P2PEntryConstants.OUTPUT_COLOR)
             }
 
-            fontRenderer.drawString(info.description, x + 24, y + 3, 0)
-            fontRenderer.drawString(I18n.format("gui.advanced_memory_card.pos", info.pos.x, info.pos.y, info.pos.z), x + 24, y + 12, 0)
-            if (renderNameTextfield) {
-                fontRenderer.drawString(I18n.format("gui.advanced_memory_card.name", info.name), x + 24, y + 21, 0)
+            GL11.glColor3f(255f, 255f, 255f)
+            // Draw our icons...
+            drawIcon(gui, info.icon!!, info.overlay!!, x + 3, y + 3)
+            gui.bindTexture(gui.BACKGROUND)
+            if (info.output) {
+                drawTexturedQuad(Tessellator.getInstance(), x.toDouble(), y + 4.0, x + 16.0, y + 20.0,
+                    144.0 / GUI_WIDTH, 200.0 / GUI_TEX_HEIGHT, 160.0 / GUI_WIDTH, 216.0 / GUI_TEX_HEIGHT)
             } else {
-                fontRenderer.drawString(I18n.format("gui.advanced_memory_card.name", ""), x + 24, y + 21, 0)
+                drawTexturedQuad(Tessellator.getInstance(), x.toDouble(), y + 4.0, x + 16.0, y + 20.0,
+                    128.0 / GUI_WIDTH, 200.0 / GUI_TEX_HEIGHT, 144.0 / GUI_WIDTH, 216.0 / GUI_TEX_HEIGHT)
             }
-            fontRenderer.drawString(getExtraInfo(info.dim, info.pos, info.facing), x + 24, y + 30, 0)
+            if (info.error || info.frequency == 0.toShort() || !info.hasChannel) {
+                drawTexturedQuad(Tessellator.getInstance(), x + 3.0, y + 20.0, x + 19.0, y + 36.0,
+                    144.0 / GUI_WIDTH, 216.0 / GUI_TEX_HEIGHT, 160.0 / GUI_WIDTH, 232.0 / GUI_TEX_HEIGHT)
+            } else {
+                drawTexturedQuad(Tessellator.getInstance(), x + 3.0, y + 20.0, x + 19.0, y + 36.0,
+                    128.0 / GUI_WIDTH, 216.0 / GUI_TEX_HEIGHT, 144.0 / GUI_WIDTH, 232.0 / GUI_TEX_HEIGHT)
+            }
+            // Now draw the stuff that messes up our GL state (aka text)
+            val fontRenderer = gui.mc.fontRenderer
+            val leftAlign = x + P2PEntryConstants.LEFT_ALIGN
+            if (renderNameTextfield) {
+                fontRenderer.drawString(I18n.format("gui.advanced_memory_card.name", info.name), leftAlign, y + 3, 0)
+            } else {
+                fontRenderer.drawString(I18n.format("gui.advanced_memory_card.name", ""), leftAlign, y + 3, 0)
+            }
+            fontRenderer.drawString(info.description, leftAlign, y + 13, 0)
+            fontRenderer.drawString(info.freqDisplay, leftAlign, y + 23, 0)
+            if (info.channels != null) {
+                fontRenderer.drawString(info.channels, leftAlign, y + 33, 0)
+            }
 
             if (selectedInfo == null) {
                 info.bindButton.enabled = false
-                info.selectButton.enabled = true
-            } else if (info.code != selectedInfo?.code) {
-                info.bindButton.enabled = true
-                info.selectButton.enabled = true
-
             } else {
-                // TODO Unbind
-                info.bindButton.enabled = false
-                info.selectButton.enabled = false
+                info.bindButton.enabled = info.code != selectedInfo?.code
             }
 
             val mode = modeSupplier()
@@ -74,70 +95,41 @@ class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>
                 info.bindButton.enabled = false
             }
             drawButtons(gui, info, mouseX, mouseY, partialTicks)
-            drawP2PColors(gui, info.frequency, x, y)
-        }
-    }
-
-    private fun drawP2PColors(gui: GuiScreen, frequency: Short, x: Int, y: Int) {
-        val colors = Platform.p2p().toColors(frequency)
-        drawRectBorder(x + 9, y + 9, 3, 3, Color.BLACK.rgb)
-        for (row in 0..1) {
-            for (col in 0..1) {
-                for (colorIndex in 0..3) {
-                    val offsetX: Int = colorIndex % 2
-                    val offsetY: Int = colorIndex / 2
-                    drawHorizontalLine(x + 7 + col * 6 + offsetX, x + 8 + col * 6 + offsetX, y + 7 + row * 6 + offsetY, Color(colors[colorIndex].dye.colorValue, false).rgb)
-                }
-                drawRectBorder(x + 6 + col * 6, y + 6 + row * 6, 3, 3, Color.BLACK.rgb)
-            }
         }
     }
 
     private fun drawButtons(gui: GuiScreen, info: InfoWrapper, mouseX: Int, mouseY: Int, partialTicks: Float) {
-        info.renameButton.x = x
-        info.renameButton.width = rowWidth
-        info.renameButton.y = y
-        info.renameButton.height = rowHeight
+        info.renameButton.x = x + 50
+        info.renameButton.width = 120
+        info.renameButton.y = y + 1
+        info.renameButton.height = 12
 
-        if (!info.bindButton.enabled && info.selectButton.enabled) {
+        if (!info.bindButton.enabled) {
             info.bindButton.enabled = false
-            info.selectButton.enabled = true
-
-            info.selectButton.x = x + 215
-            info.selectButton.width = 32
-            info.selectButton.y = y + 6
-            info.selectButton.drawButton(gui.mc, mouseX, mouseY, partialTicks)
-        } else if (info.bindButton.enabled && info.selectButton.enabled) {
+        } else if (info.bindButton.enabled) {
             info.bindButton.enabled = true
-            info.selectButton.enabled = true
-
-            // Select button on the left
-            info.selectButton.x = x + 178
-            info.selectButton.width = 32
-            info.selectButton.y = y + 6
-            info.selectButton.drawButton(gui.mc, mouseX, mouseY, partialTicks)
-
-            // Bind button on the right
-            info.bindButton.x = x + 215
-            info.bindButton.width = 32
-            info.bindButton.y = y + 6
+            info.bindButton.x = x + 190
+            info.bindButton.width = 56
+            info.bindButton.y = y + 14
             info.bindButton.drawButton(gui.mc, mouseX, mouseY, partialTicks)
-        } else if (!info.selectButton.enabled && !info.bindButton.enabled) {
+        } else if (!info.bindButton.enabled) {
             // TODO Unbind
             info.bindButton.enabled = false
-            info.selectButton.enabled = false
         }
     }
 
 }
 
-fun getExtraInfo(world: Int, pos: BlockPos, face: EnumFacing): String {
-    val tile = DimensionManager.getWorld(world)?.getTileEntity(pos)
-    if (tile is TileCableBus) {
-        val used = ((tile.getPart(face) as? PartP2PTunnelME)?.externalFacingNode as? GridNode)?.usedChannels()
-        if (used != null) {
-            return I18n.format("gui.advanced_memory_card.extra.channel", used)
-        }
-    }
-    return I18n.format("gui.advanced_memory_card.extra.none")
+private fun drawIcon(gui: GuiAdvancedMemoryCard, icon: ResourceLocation, overlay: ResourceLocation, x: Int, y: Int) {
+    val tessellator = Tessellator.getInstance()
+    GL11.glPushAttrib(GL11.GL_BLEND or GL11.GL_TEXTURE_2D or GL11.GL_COLOR)
+    GL11.glEnable(GL11.GL_BLEND)
+    GL11.glEnable(GL11.GL_TEXTURE_2D)
+    GL11.glColor3f(255f, 255f, 255f)
+    OpenGlHelper.glBlendFunc(770, 771, 1, 0)
+//    gui.mc.renderEngine.bindTexture(icon)
+//    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
+//    gui.mc.renderEngine.bindTexture(overlay)
+//    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
+    GL11.glPopAttrib()
 }

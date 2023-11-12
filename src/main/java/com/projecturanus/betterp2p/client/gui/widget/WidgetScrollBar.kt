@@ -4,9 +4,7 @@ import com.projecturanus.betterp2p.client.TextureBound
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.renderer.GlStateManager
 
-class WidgetScrollBar {
-    var displayX = 0
-    var displayY = 0
+class WidgetScrollBar(var displayX: Int, var displayY: Int) {
     var width = 12
     var height = 16
     var pageSize = 1
@@ -17,6 +15,8 @@ class WidgetScrollBar {
     var onScroll: () -> Unit = {}
 
     var currentScroll = 0
+
+    var moving = false
 
     fun <T> draw(g: T) where T: TextureBound, T: Gui {
         g.bindTexture("minecraft", "textures/gui/container/creative_inventory/tabs.png")
@@ -44,7 +44,7 @@ class WidgetScrollBar {
     }
 
     private fun applyRange() {
-        currentScroll = currentScroll.coerceAtMost(maxScroll).coerceAtLeast(minScroll)
+        currentScroll = currentScroll.coerceIn(minScroll, maxScroll)
         onScroll()
     }
 
@@ -52,19 +52,20 @@ class WidgetScrollBar {
         if (getRange() == 0) {
             return
         }
-        if (x > displayX && x <= displayX + width) {
-            if (y > displayY && y <= displayY + height) {
+        if (y > displayY && x <= displayY + height) {
+            if (x > displayX && x <= displayX + width) {
                 currentScroll = y - displayY
                 currentScroll = minScroll + currentScroll * 2 * getRange() / height
                 currentScroll = currentScroll + 1 shr 1
                 applyRange()
+                moving = true
             }
         }
     }
 
     fun wheel(delta: Int) {
         var delta = delta
-        delta = (-delta).coerceAtMost(1).coerceAtLeast(-1)
+        delta = (-delta).coerceIn(-1, 1)
         currentScroll += delta
         applyRange()
     }

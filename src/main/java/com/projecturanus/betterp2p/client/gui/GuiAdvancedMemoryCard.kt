@@ -7,11 +7,10 @@ import com.projecturanus.betterp2p.capability.MemoryInfo
 import com.projecturanus.betterp2p.capability.P2PTunnelInfo
 import com.projecturanus.betterp2p.client.ClientCache
 import com.projecturanus.betterp2p.client.TextureBound
-import com.projecturanus.betterp2p.client.gui.widget.IGuiTextField
-import com.projecturanus.betterp2p.client.gui.widget.WidgetP2PDevice
-import com.projecturanus.betterp2p.client.gui.widget.WidgetScrollBar
+import com.projecturanus.betterp2p.client.gui.widget.*
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import com.projecturanus.betterp2p.network.*
+import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.renderer.Tessellator
@@ -20,35 +19,55 @@ import net.minecraft.client.resources.I18n
 import net.minecraft.util.ResourceLocation
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
+import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL11.GL_QUADS
 import java.util.*
 
+const val GUI_WIDTH = 288
+const val GUI_TEX_HEIGHT = 264
 class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
-    private val xSize = 288
-    private val ySize = 242
-    private val guiLeft: Int by lazy { (width - this.xSize) / 2 }
-    private val guiTop: Int by lazy { (height - this.ySize) / 2 }
+    private lateinit var _guiLeft: Lazy<Int>
+    private var guiLeft: Int
+        get() = _guiLeft.value
+        set(value) {
+            _guiLeft = lazyOf(value)
+        }
+
+    private lateinit var _guiTop: Lazy<Int>
+    private var guiTop: Int
+        get() = _guiTop.value
+        set(value) {
+            _guiTop = lazyOf(value)
+        }
 
     private val tableX = 9
     private val tableY = 19
 
-    private lateinit var scrollBar: WidgetScrollBar
+    private var scale = msg.memoryInfo.gui
+    private val resizeButton: WidgetButton
+
+    private var _ySize: Lazy<Int> = lazy { 242 }
+    private var ySize: Int
+        get() = _ySize.value
+        set(value) {
+            _ySize = lazy { value }
+        }
+
+    private val scrollBar: WidgetScrollBar
     private lateinit var searchBar: MEGuiTextField
-    private lateinit var renameBar: IGuiTextField
 
     private val infos = InfoList(msg.infos.map(::InfoWrapper), ::searchText)
 
     private val searchText: String
         get() = searchBar.text
 
-    private val widgetDevices: List<WidgetP2PDevice>
-//    private var infoOnScreen: List<InfoWrapper>
+    private lateinit var col: WidgetP2PColumn
 
     private val descriptionLines: MutableList<String> = mutableListOf()
 
     private var mode = msg.memoryInfo.mode
     private var modeString = getModeString()
-    private val modeButton by lazy { GuiButton(0, guiLeft + 8, guiTop + 190, 256, 20, modeString) }
+    private val modeButton by lazy { GuiButton(0, 0, 0, 256, 20, modeString) }
     private val sortRules: List<String> by lazy {
         listOf(
             "§b§n" + I18n.format("gui.advanced_memory_card.sortinfo1"),
@@ -60,41 +79,68 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         )
     }
 
+    val BACKGROUND: ResourceLocation = ResourceLocation(MODID, "textures/gui/advanced_memory_card.png")
     private val selectedInfo: InfoWrapper?
         get() = infos.selectedInfo
 
     init {
         infos.select(msg.memoryInfo.selectedEntry)
-        val list = mutableListOf<WidgetP2PDevice>()
-        for (i in 0..3) {
-            list += WidgetP2PDevice(::selectedInfo, ::mode, { infos.filtered.getOrNull(i + scrollBar.currentScroll) }, 0, 0)
+        scrollBar = WidgetScrollBar(0, 0)
+
+        resizeButton = object: WidgetButton(this, 0, 0, 32, 32, { scale.unlocalizedName }) {
+            override fun mousePressed(mouseX: Int, mouseY: Int) {
+                if (super.mousePressed(mc, mouseX, mouseY)) {
+                    scale = when (scale) {
+                        GuiScale.DYNAMIC -> GuiScale.SMALL
+                        GuiScale.SMALL -> GuiScale.NORMAL
+                        GuiScale.NORMAL -> GuiScale.LARGE
+                        GuiScale.LARGE -> GuiScale.DYNAMIC
+                    }
+                    initGui()
+                    super.playPressSound(mc.soundHandler)
+                }
+            }
         }
-        widgetDevices = list.toList()
     }
 
+    // also called on resize
     override fun initGui() {
         super.initGui()
         checkInfo()
-        renameBar = IGuiTextField(fontRenderer, 0, 0)
-        renameBar.maxStringLength = 50
 
-        searchBar = MEGuiTextField(fontRenderer, guiLeft + 198, guiTop + 5, 65, 10)
-        searchBar.maxStringLength = 25
+        val h = height.coerceAtLeast(256)
+        if (scale.minHeight > h) {
+            scale = GuiScale.DYNAMIC
+        }
+        val numEntries = scale.size(height - 75)
+
+        ySize = (numEntries * P2PEntryConstants.HEIGHT) + 75 + (numEntries - 1)
+        guiTop = (h - ySize) / 2
+        guiLeft = (width - GUI_WIDTH) / 2
+
+        scrollBar.displayX = guiLeft + 268
+        scrollBar.displayY = guiTop + 19
+        scrollBar.height = numEntries * P2PEntryConstants.HEIGHT + (numEntries - 1) - 7
+        scrollBar.setRange(0, infos.size.coerceIn(0, (infos.size - numEntries).coerceAtLeast(0)), 23)
+
+        searchBar = MEGuiTextField(fontRenderer, guiLeft + 163, guiTop + 5, 100, 10)
+        searchBar.maxStringLength = 40
         searchBar.setTextColor(0xFFFFFF)
         searchBar.visible = true
         searchBar.enableBackgroundDrawing = false
-
-        scrollBar = WidgetScrollBar()
-        scrollBar.displayX = guiLeft + 268
-        scrollBar.displayY = guiTop + 19
-        scrollBar.height = 150
-        scrollBar.setRange(0, infos.size.coerceIn(0..(infos.size - 4).coerceAtLeast(0)), 23)
-
-        for (i in 0..3) {
-            widgetDevices[i].x = guiLeft + tableX
-            widgetDevices[i].y = guiTop + tableY + 42 * i
-        }
         searchBar.text = ClientCache.searchText
+
+        col = WidgetP2PColumn(fontRenderer, this, infos, 0, 0,
+            ::selectedInfo, ::mode, scrollBar)
+        col.resize(scale, h - 75)
+        col.setPosition(guiLeft + tableX, guiTop + tableY)
+
+        modeButton.x = guiLeft + 8
+        modeButton.y = guiTop + ySize - 52
+
+        resizeButton.setPosition(guiLeft - 32, guiTop + 2)
+        resizeButton.setTexCoords(scale.ordinal * 32.0, 200.0)
+
         infos.refresh()
         checkInfo()
         refreshOverlay()
@@ -114,21 +160,20 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     private fun syncMemoryInfo() {
-        ModNetwork.channel.sendToServer(C2SUpdateInfo(MemoryInfo(infos.selectedEntry, selectedInfo?.frequency ?: 0, mode)))
+        ModNetwork.channel.sendToServer(C2SUpdateInfo(MemoryInfo(infos.selectedEntry, selectedInfo?.frequency ?: 0, mode, scale)))
     }
 
     private fun drawInformation() {
-        val x = 8
         var y = 214
         for (line in descriptionLines) {
-            fontRenderer.drawString(line, guiLeft + x, guiTop + y, 0)
+            fontRenderer.drawString(line, guiLeft + 8, modeButton.y + 20 + 3, 0)
             y += fontRenderer.FONT_HEIGHT
         }
     }
 
     override fun onGuiClosed() {
         ClientCache.searchText = searchBar.text
-        saveP2PChannel()
+        col.onGuiClosed()
         syncMemoryInfo()
         ModNetwork.channel.sendToServer(C2SCloseGui())
     }
@@ -136,14 +181,9 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
         drawDefaultBackground()
         drawBackground()
-        scrollBar.draw(this)
-        searchBar.drawTextBox()
 
-        for (widget in widgetDevices) {
-            widget.render(this, mouseX, mouseY, partialTicks)
-        }
-        modeButton.drawButton(mc, mouseX, mouseY, partialTicks)
-
+        // Draw stuff that resets GL state first
+        fontRenderer.drawString(I18n.format("item.advanced_memory_card.name"), guiLeft + tableX, guiTop + 6, 0)
         if (modeButton.isMouseOver) {
             descriptionLines.clear()
             descriptionLines += I18n.format("gui.advanced_memory_card.desc.mode", I18n.format("gui.advanced_memory_card.mode.${mode.next().name.toLowerCase(Locale.getDefault())}"))
@@ -151,15 +191,28 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
             descriptionLines.clear()
         }
         drawInformation()
+        searchBar.drawTextBox()
+        resizeButton.draw(mc, mouseX, mouseY, partialTicks)
+        modeButton.drawButton(mc, mouseX, mouseY, partialTicks)
 
-        if (renameBar.visible && !renameBar.isFocused) {
-            renameBar.isFocused = true
-        }
+        // drawing
+        GL11.glPushAttrib(GL11.GL_BLEND or GL11.GL_TEXTURE_2D or GL11.GL_COLOR)
+        GL11.glEnable(GL11.GL_BLEND)
+        GL11.glEnable(GL11.GL_TEXTURE_2D)
+        GL11.glColor3f(255f, 255f, 255f)
+        scrollBar.draw(this)
+
+        col.render(this, mouseX, mouseY, partialTicks)
+        // The GL sate is already messed up here by string drawing but oh well
+        GL11.glPopAttrib()
+
         if (searchBar.isMouseIn(mouseX, mouseY)) {
             drawHoveringText(sortRules, guiLeft, guiTop + ySize - 40, fontRenderer)
+        } else if (resizeButton.isHovering(mouseX, mouseY)) {
+            drawHoveringText(listOf(I18n.format(resizeButton.hoverText())), mouseX, mouseY, fontRenderer)
+        } else {
+            col.mouseHovered(mouseX, mouseY)
         }
-
-        renameBar.drawTextBox()
 
         super.drawScreen(mouseX, mouseY, partialTicks)
     }
@@ -177,10 +230,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         return I18n.format("gui.advanced_memory_card.mode.${mode.name.toLowerCase(Locale.getDefault())}")
     }
 
-    private fun findInput(frequency: Short?) =
-        infos.filtered.find { it.frequency == frequency && !it.output }
-
-    private fun selectInfo(hash: Long) {
+    fun selectInfo(hash: Long) {
         infos.select(hash)
         syncMemoryInfo()
         refreshOverlay()
@@ -198,95 +248,28 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         ClientCache.positions.addAll(infos.sorted.filter { it.frequency == selectedInfo?.frequency && it != selectedInfo }.map { it.pos to it.facing })
     }
 
-    private fun onSelectButtonClicked(info: InfoWrapper) {
-        selectInfo(info.code)
-    }
-
-    private fun onRenameButtonClicked(info: InfoWrapper, index: Int) {
-        /*
-        if (isShiftKeyDown()) {
-            return transportPlayer(info)
-        }
-         */
-
-        renameBar.visible = true
-        renameBar.y = (this.guiTop + this.tableY) + index * 42 + 19
-        renameBar.x = this.guiLeft + 60
-        renameBar.width = 120
-        renameBar.height = 12
-        renameBar.text = info.name
-        renameBar.isFocused = true
-        renameBar.cursorPosition = 0
-        renameBar.info = info
-    }
-
-    private fun saveP2PChannel() {
-        for (widget in widgetDevices) {
-            widget.renderNameTextfield = true
-        }
-
-        if (renameBar.info != null && renameBar.info.name != renameBar.text) {
-            val info: InfoWrapper = renameBar.info
-            renameBar.text = renameBar.text.trim()
-            ModNetwork.channel.sendToServer(C2SP2PTunnelInfo(P2PTunnelInfo(info.pos, info.dim, info.facing, renameBar.text)))
-        }
-
-        renameBar.visible = false
-        renameBar.text = ""
-        renameBar.isFocused = false
-        renameBar.info = null
-    }
-
-    private fun onBindButtonClicked(info: InfoWrapper) {
-        if (infos.selectedEntry == NONE) return
-        when (mode) {
-            BetterMemoryCardModes.INPUT -> {
-                BetterP2P.logger.debug("Bind ${info.code} as input")
-                ModNetwork.channel.sendToServer(C2SLinkP2P(info.code, infos.selectedEntry))
-            }
-            BetterMemoryCardModes.OUTPUT -> {
-                BetterP2P.logger.debug("Bind ${info.code} as output")
-                ModNetwork.channel.sendToServer(C2SLinkP2P(infos.selectedEntry, info.code))
-            }
-            BetterMemoryCardModes.COPY -> {
-                val input = findInput(selectedInfo?.frequency)
-                if (input != null)
-                    ModNetwork.channel.sendToServer(C2SLinkP2P(input.code, info.code))
-            }
-        }
-    }
 
     override fun mouseClicked(mouseX: Int, mouseY: Int, mouseButton: Int) {
-        var clickRenameButton = false
-        for ((index, widget) in widgetDevices.withIndex()) {
-            val info = widget.infoSupplier()
-            if (info?.selectButton?.mousePressed(mc, mouseX, mouseY) == true)
-                onSelectButtonClicked(widget.infoSupplier()!!)
-            else if (info?.bindButton?.mousePressed(mc, mouseX, mouseY) == true)
-                onBindButtonClicked(widget.infoSupplier()!!)
-            else if (info?.renameButton?.mousePressed(mc, mouseX, mouseY) == true) {
-                if (renameBar.info != widget.infoSupplier()!!) {
-                    saveP2PChannel()
-                }
-                widget.renderNameTextfield = false
-                onRenameButtonClicked(widget.infoSupplier()!!, index)
-                clickRenameButton = true
-            }
-        }
-        if(!clickRenameButton && renameBar.visible) {
-            saveP2PChannel()
-        }
+        col.mouseClicked(mouseX, mouseY, mouseButton)
         if (modeButton.mousePressed(mc, mouseX, mouseY)) {
             switchMode()
+            modeButton.playPressSound(mc.soundHandler)
         }
         scrollBar.click(mouseX, mouseY)
+        resizeButton.mousePressed(mouseX, mouseY)
         searchBar.mouseClicked(mouseX, mouseY, mouseButton)
-        renameBar.mouseClicked(mouseX, mouseY, mouseButton)
         if (mouseButton == 1 && searchBar.isMouseIn(mouseX, mouseY)) {
             this.searchBar.text = ""
             infos.refilter()
         }
         super.mouseClicked(mouseX, mouseY, mouseButton)
+    }
+
+    override fun mouseReleased(mouseX: Int, mouseY: Int, state: Int) {
+        super.mouseReleased(mouseX, mouseY, state)
+        if (state != -1) {
+            scrollBar.moving = false
+        }
     }
 
     override fun mouseClickMove(mouseX: Int, mouseY: Int, clickedMouseButton: Int, timeSinceLastClick: Long) {
@@ -298,12 +281,12 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         super.handleMouseInput()
         val i = Mouse.getEventDWheel()
         if (i != 0 && isShiftKeyDown()) {
-            val x = Mouse.getEventX() * width / mc.displayWidth
-            val y = height - Mouse.getEventY() * height / mc.displayHeight - 1
+//            val x = Mouse.getEventX() * width / mc.displayWidth
+//            val y = height - Mouse.getEventY() * height / mc.displayHeight - 1
 //            this.mouseWheelEvent(x, y, i / Math.abs(i))
         } else if (i != 0) {
             scrollBar.wheel(i)
-            saveP2PChannel()
+            col.finishRename()
         }
     }
 
@@ -312,23 +295,35 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         mc.textureManager.bindTexture(loc)
     }
 
+    fun bindTexture(loc: ResourceLocation) {
+        mc.textureManager.bindTexture(loc)
+    }
+
     private fun drawBackground() {
-        bindTexture(MODID, "textures/gui/advanced_memory_card.png")
-        drawTexturedModalRect(guiLeft, guiTop, 0, 0, this.xSize, this.ySize)
+        bindTexture(BACKGROUND)
 
         val tessellator = Tessellator.getInstance()
-        val bufferBuilder = tessellator.buffer;
-        val f = 1f / this.xSize.toFloat()
-        val f1 = 1f / this.ySize.toFloat()
-        val u = 0
-        val v = 0
 
-        bufferBuilder.begin(GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-        bufferBuilder.pos(guiLeft.toDouble(), (guiTop + this.ySize).toDouble(), 0.0).tex((u.toFloat() * f).toDouble(), ((v + this.ySize).toFloat() * f1).toDouble()).endVertex()
-        bufferBuilder.pos((guiLeft + this.xSize).toDouble(), (guiTop + this.ySize).toDouble(), 0.0).tex(((u + xSize).toFloat() * f).toDouble(), ((v + this.ySize).toFloat() * f1).toDouble()).endVertex()
-        bufferBuilder.pos((guiLeft + this.xSize).toDouble(), guiTop.toDouble(), 0.0).tex(((u + xSize).toFloat() * f).toDouble(), (v.toFloat() * f1).toDouble()).endVertex()
-        bufferBuilder.pos(guiLeft.toDouble(), guiTop.toDouble(), 0.0).tex((u.toFloat() * f).toDouble(), (v.toFloat() * f1).toDouble()).endVertex()
-        tessellator.draw()
+        // top
+        drawTexturedQuad(tessellator, guiLeft.toDouble(), guiTop.toDouble(),
+            (guiLeft + GUI_WIDTH).toDouble(), guiTop + 60.0,
+            u0 = 0.0, v0 = 0.0,
+            u1 = 1.0, v1 = 60.0 / GUI_TEX_HEIGHT)
+
+        // P2P segments
+        val p2pHeight = P2PEntryConstants.HEIGHT + 1.0
+        for (i in 0 until scale.size(ySize - 75) - 2) {
+            drawTexturedQuad(tessellator, guiLeft.toDouble(), guiTop + 60.0 + p2pHeight * i,
+                (guiLeft + GUI_WIDTH).toDouble(), guiTop + 60.0 + p2pHeight * (i + 1),
+                u0 = 0.0, v0 = 60.0 / GUI_TEX_HEIGHT,
+                u1 = 1.0, v1 = 102.0 / GUI_TEX_HEIGHT)
+        }
+
+        // bottom segment
+        drawTexturedQuad(tessellator, guiLeft.toDouble(), guiTop + ySize - 98.0,
+            (guiLeft + GUI_WIDTH).toDouble(), (guiTop + ySize).toDouble(),
+            u0 = 0.0, v0 = 102.0 / GUI_TEX_HEIGHT,
+            u1 = 1.0, v1 = 200.0 / GUI_TEX_HEIGHT)
     }
 
     override fun doesGuiPauseGame(): Boolean {
@@ -336,19 +331,20 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     override fun keyTyped(typedChar: Char, keyCode: Int) {
-        if (keyCode == Keyboard.KEY_LSHIFT) {
+        if (keyCode == Keyboard.KEY_LSHIFT || col.keyTyped(typedChar, keyCode)) {
             return
         }
-        if (renameBar.isFocused) {
-            if (keyCode == Keyboard.KEY_RETURN) {
-                saveP2PChannel()
-            } else {
-                renameBar.textboxKeyTyped(typedChar, keyCode)
-            }
-        } else if (!(typedChar.isWhitespace() && searchBar.text.isEmpty() && searchBar.textboxKeyTyped(typedChar, keyCode))) {
-            searchBar.textboxKeyTyped(typedChar, keyCode)
+        if (!(typedChar.isWhitespace() && searchBar.text.isEmpty()) && searchBar.textboxKeyTyped(typedChar, keyCode)) {
             infos.refilter()
+        } else if (typedChar == 'e') {
+            mc.displayGuiScreen(null as GuiScreen?)
+            mc.setIngameFocus()
+            return
         }
         return super.keyTyped(typedChar, keyCode)
+    }
+
+    public override fun drawHoveringText(textLines: List<String>, x: Int, y: Int, font: FontRenderer) {
+        super.drawHoveringText(textLines, x, y, font)
     }
 }
