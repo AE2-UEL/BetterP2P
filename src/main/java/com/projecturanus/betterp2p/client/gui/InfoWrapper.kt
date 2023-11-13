@@ -12,6 +12,7 @@ import com.projecturanus.betterp2p.network.hashP2P
 import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.renderer.ItemRenderer
 import net.minecraft.client.renderer.block.model.ModelManager
+import net.minecraft.client.renderer.block.model.ModelResourceLocation
 import net.minecraft.client.resources.I18n
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.ResourceLocation
@@ -42,12 +43,12 @@ class InfoWrapper(info: P2PInfo) {
     val bindButton = GuiButton(0, 0, 0, 34, 20, I18n.format("gui.advanced_memory_card.bind"))
     val renameButton = GuiButton(0, 0, 0, 0, 0, "")
 
-    val icon: ResourceLocation? by lazy {
-        (tile?.getPart(info.facing) as? PartP2PTunnel<*>)?.staticModels?.models?.get(2)
-    }
-    val overlay: ResourceLocation? by lazy {
-        tile?.getPart(info.facing)?.getItemStack(PartItemStack.WRENCH)?.item?.registryName
-    }
+//    val icon: ResourceLocation? by lazy {
+//            ModelResourceLocation((tile?.getPart(info.facing) as? PartP2PTunnel<*>)?.staticModels?.models?.get(0)!!, "front")
+//
+//    }
+    val icon: ResourceLocation? = ResourceLocation("appliedenergistics2", "textures/blocks/quartz_block.png")
+    val overlay: ResourceLocation? = ResourceLocation("appliedenergistics2", "textures/items/part/p2p_tunnel_front.png")
 
     val typeName: String by lazy {
         val item = tile?.getPart(info.facing)?.getItemStack(PartItemStack.WRENCH)

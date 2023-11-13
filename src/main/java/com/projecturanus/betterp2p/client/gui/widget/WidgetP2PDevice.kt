@@ -9,6 +9,7 @@ import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.Tessellator
+import net.minecraft.client.renderer.block.model.ModelManager
 import net.minecraft.client.resources.I18n
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.ResourceLocation
@@ -127,9 +128,9 @@ private fun drawIcon(gui: GuiAdvancedMemoryCard, icon: ResourceLocation, overlay
     GL11.glEnable(GL11.GL_TEXTURE_2D)
     GL11.glColor3f(255f, 255f, 255f)
     OpenGlHelper.glBlendFunc(770, 771, 1, 0)
-//    gui.mc.renderEngine.bindTexture(icon)
-//    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
-//    gui.mc.renderEngine.bindTexture(overlay)
-//    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
+    gui.mc.renderEngine.bindTexture(icon)
+    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
+    gui.mc.renderEngine.bindTexture(overlay)
+    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
     GL11.glPopAttrib()
 }
