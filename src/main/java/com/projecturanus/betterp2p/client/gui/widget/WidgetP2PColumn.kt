@@ -38,9 +38,9 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
     fun resize(scale: GuiScale, availableHeight: Int) {
         entries.clear()
         for (i in 0 until scale.size(availableHeight)) {
-            val widget = WidgetP2PDevice( selectedInfo, mode,
+            val widget = WidgetP2PDevice(selectedInfo, mode,
                 { infos.filtered.getOrNull(i + scrollBar.currentScroll) },
-                x, y + i * (P2PEntryConstants.HEIGHT + 1))
+                gui, x, y + i * (P2PEntryConstants.HEIGHT + 1))
             entries.add(widget)
         }
     }
@@ -91,13 +91,18 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
         renameBar.info = info
     }
 
-    private fun onSelectButtonClicked(info: InfoWrapper) {
-        gui.selectInfo(info.code)
+    private fun onSelectButtonClicked(widget: WidgetP2PDevice, info: InfoWrapper, mouseButton: Int) {
+        if (mouseButton == 1) {
+            gui.openTypeSelector(widget, false)
+        } else if (selectedInfo.get() != info) {
+            gui.selectInfo(info.code)
+        }
+
         info.bindButton.playPressSound(gui.mc.soundHandler)
     }
 
     private fun onBindButtonClicked(info: InfoWrapper) {
-        if (infos.selectedEntry == NONE) return
+        if (infos.selectedEntry == NONE_SELECTED) return
         when (mode()) {
             BetterMemoryCardModes.INPUT -> {
                 BetterP2P.logger.debug("Bind ${info.code} as input")
@@ -111,20 +116,34 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
                 val input = findInput(infos.selectedInfo?.frequency)
                 if (input != null)
                     ModNetwork.channel.sendToServer(C2SLinkP2P(input.code, info.code))
+            } else -> {
+                BetterP2P.logger.debug("Somehow bind button was pressed while in UNBIND mode.")
             }
         }
         info.bindButton.playPressSound(gui.mc.soundHandler)
     }
 
-    private fun findInput(frequency: Short?) =
+    private fun onUnbindButtonClicked(info: InfoWrapper) {
+        if (info.frequency != 0.toShort()) {
+            ModNetwork.channel.sendToServer(C2SUnlinkP2P(info.code, gui.getTypeID()))
+            info.frequency = 0.toShort()
+        }
+    }
+
+    fun findInput(frequency: Short?) =
         infos.filtered.find { it.frequency == frequency && !it.output }
+
+    fun findOutput(frequency: Short?) =
+        infos.filtered.find { it.frequency == frequency && it.output }
 
     fun mouseClicked(mouseX: Int, mouseY: Int, mouseButton: Int) {
         var clickRenameButton = false
-        for ((index,widget) in entries.withIndex()) {
+        for ((index, widget) in entries.withIndex()) {
             val info = widget.infoSupplier()
             if (info?.bindButton?.mousePressed(gui.mc, mouseX, mouseY) == true) {
                 onBindButtonClicked(widget.infoSupplier()!!)
+            } else if (info?.unbindButton?.mousePressed(gui.mc, mouseX, mouseY) == true) {
+                onUnbindButtonClicked(widget.infoSupplier()!!)
             } else if (mouseX > widget.x.toDouble() + 50 && mouseX < widget.x.toDouble() + 50 + 160 &&
                        mouseY > widget.y.toDouble() +  1 && mouseY < widget.y.toDouble() +  1 +  13 &&
                        widget.infoSupplier() != null) {
@@ -138,7 +157,7 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
                        mouseY > widget.y && mouseY < widget.y + P2PEntryConstants.HEIGHT &&
                        info != null && selectedInfo.get() != info
             ) {
-                onSelectButtonClicked(info)
+                onSelectButtonClicked(widget, info, mouseButton)
             }
         }
         renameBar.mouseClicked(mouseX,mouseY,mouseButton)
@@ -181,9 +200,9 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
         return false
     }
 
-    fun render(gui: GuiAdvancedMemoryCard, mouseX: Int, mouseY: Int, partialTicks: Float) {
+    fun render(mouseX: Int, mouseY: Int, partialTicks: Float) {
         for (widget in entries) {
-            widget.render(gui, mouseX, mouseY, partialTicks)
+            widget.render(mouseX, mouseY, partialTicks)
         }
         renameBar.drawTextBox()
     }

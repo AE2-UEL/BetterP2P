@@ -1,22 +1,15 @@
 package com.projecturanus.betterp2p.client.gui.widget
 
-import appeng.me.GridNode
-import appeng.parts.p2p.PartP2PTunnelME
-import appeng.tile.networking.TileCableBus
-import appeng.util.Platform
+import com.projecturanus.betterp2p.capability.TUNNEL_ANY
 import com.projecturanus.betterp2p.client.gui.*
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
+import com.projecturanus.betterp2p.network.C2STypeChange
+import com.projecturanus.betterp2p.network.ModNetwork
+import com.projecturanus.betterp2p.util.p2p.ClientTunnelInfo
 import net.minecraft.client.gui.GuiScreen
-import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.block.model.ModelManager
 import net.minecraft.client.resources.I18n
-import net.minecraft.util.EnumFacing
-import net.minecraft.util.ResourceLocation
-import net.minecraft.util.math.BlockPos
-import net.minecraftforge.common.DimensionManager
 import org.lwjgl.opengl.GL11
-import java.awt.Color
 import kotlin.reflect.KProperty0
 
 object P2PEntryConstants {
@@ -29,14 +22,52 @@ object P2PEntryConstants {
     const val LEFT_ALIGN = 24
 }
 
-class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>, val modeSupplier: () -> BetterMemoryCardModes, val infoSupplier: () -> InfoWrapper?, var x: Int, var y: Int): Widget() {
+class WidgetP2PDevice(
+    private val selectedInfoProperty: KProperty0<InfoWrapper?>,
+    val modeSupplier: () -> BetterMemoryCardModes,
+    val infoSupplier: () -> InfoWrapper?,
+    val gui: GuiAdvancedMemoryCard,
+    var x: Int,
+    var y: Int
+): Widget(), ITypeReceiver {
 
     var renderNameTextfield = true
 
     private val selectedInfo: InfoWrapper?
         get() = selectedInfoProperty.get()
 
-    fun render(gui: GuiAdvancedMemoryCard, mouseX: Int, mouseY: Int, partialTicks: Float) {
+    /**
+     * Update the button visibility
+     */
+    fun updateButtonVisibility() {
+        val info = infoSupplier() ?: return
+        val mode = modeSupplier()
+        if (selectedInfo == null) {
+            // No selected, so we don't show buttons
+            info.bindButton.enabled = false
+            info.unbindButton.enabled = false
+        } else if (mode == BetterMemoryCardModes.UNBIND) {
+            // Only unbinds allowed in unbind mode
+            info.bindButton.enabled = false
+            info.unbindButton.enabled = info.frequency != 0.toShort()
+        } else if (mode == BetterMemoryCardModes.COPY &&
+            ((!info.output && info.frequency != 0.toShort()) || selectedInfo!!.output)) {
+            // Copy mode
+            // If this info is (input && set freq) || selected info is an output
+            // Disable all buttons
+            info.bindButton.enabled = false
+            info.unbindButton.enabled = false
+        } else {
+            // Other modes:
+            // Bind allowed only if currently not selected && selected is unbound; OR not bound to selected
+            info.bindButton.enabled = info.code != selectedInfo!!.code &&
+                (selectedInfo!!.frequency == 0.toShort() ||
+                    info.frequency != selectedInfo!!.frequency)
+            info.unbindButton.enabled = false
+        }
+    }
+
+    fun render(mouseX: Int, mouseY: Int, partialTicks: Float) {
         val info = infoSupplier()
         if (info != null) {
             // draw the background first
@@ -55,7 +86,7 @@ class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>
 
             GL11.glColor3f(255f, 255f, 255f)
             // Draw our icons...
-            drawIcon(gui, info.icon!!, info.overlay!!, x + 3, y + 3)
+            drawBlockIcon(gui.mc, info.icon, info.overlay, x + 3, y + 3)
             gui.bindTexture(gui.BACKGROUND)
             if (info.output) {
                 drawTexturedQuad(Tessellator.getInstance(), x.toDouble(), y + 4.0, x + 16.0, y + 20.0,
@@ -82,19 +113,10 @@ class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>
             fontRenderer.drawString(info.description, leftAlign, y + 13, 0)
             fontRenderer.drawString(info.freqDisplay, leftAlign, y + 23, 0)
             if (info.channels != null) {
-                fontRenderer.drawString(info.channels, leftAlign, y + 33, 0)
+                fontRenderer.drawString(info.channels!!, leftAlign, y + 33, 0)
             }
 
-            if (selectedInfo == null) {
-                info.bindButton.enabled = false
-            } else {
-                info.bindButton.enabled = info.code != selectedInfo?.code
-            }
-
-            val mode = modeSupplier()
-            if (mode == BetterMemoryCardModes.COPY && !info.output && info.frequency != 0.toShort()) {
-                info.bindButton.enabled = false
-            }
+            updateButtonVisibility()
             drawButtons(gui, info, mouseX, mouseY, partialTicks)
         }
     }
@@ -105,32 +127,31 @@ class WidgetP2PDevice(private val selectedInfoProperty: KProperty0<InfoWrapper?>
         info.renameButton.y = y + 1
         info.renameButton.height = 12
 
-        if (!info.bindButton.enabled) {
-            info.bindButton.enabled = false
-        } else if (info.bindButton.enabled) {
+        if (info.bindButton.enabled) {
             info.bindButton.enabled = true
             info.bindButton.x = x + 190
             info.bindButton.width = 56
             info.bindButton.y = y + 14
             info.bindButton.drawButton(gui.mc, mouseX, mouseY, partialTicks)
-        } else if (!info.bindButton.enabled) {
-            // TODO Unbind
-            info.bindButton.enabled = false
+        } else if (info.unbindButton.enabled) {
+            info.unbindButton.enabled = true
+            info.unbindButton.x = x + 190
+            info.unbindButton.width = 56
+            info.unbindButton.y = y + 14
+            info.unbindButton.drawButton(gui.mc, mouseX, mouseY, partialTicks)
         }
     }
+    override fun accept(type: ClientTunnelInfo?) {
+        ModNetwork.channel.sendToServer(C2STypeChange(type?.index ?: TUNNEL_ANY, infoSupplier()!!.code))
+        gui.closeTypeSelector()
+    }
 
-}
+    override fun x(): Int {
+        return this.x + 40
+    }
 
-private fun drawIcon(gui: GuiAdvancedMemoryCard, icon: ResourceLocation, overlay: ResourceLocation, x: Int, y: Int) {
-    val tessellator = Tessellator.getInstance()
-    GL11.glPushAttrib(GL11.GL_BLEND or GL11.GL_TEXTURE_2D or GL11.GL_COLOR)
-    GL11.glEnable(GL11.GL_BLEND)
-    GL11.glEnable(GL11.GL_TEXTURE_2D)
-    GL11.glColor3f(255f, 255f, 255f)
-    OpenGlHelper.glBlendFunc(770, 771, 1, 0)
-    gui.mc.renderEngine.bindTexture(icon)
-    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
-    gui.mc.renderEngine.bindTexture(overlay)
-    drawTexturedQuad(tessellator, x.toDouble() + 1, y.toDouble() + 1, x + 15.0, y + 15.0, 0.0, 0.0, 1.0, 1.0)
-    GL11.glPopAttrib()
+    override fun y(): Int {
+        return this.y
+    }
+
 }

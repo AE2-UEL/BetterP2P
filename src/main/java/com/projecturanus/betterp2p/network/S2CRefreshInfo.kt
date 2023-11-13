@@ -15,7 +15,11 @@ fun readInfo(buf: ByteBuf): P2PInfo {
     for (i in 0..nameLength) {
         name += buf.readChar()
     }
-    return P2PInfo(freq, pos, world, facing, name, buf.readBoolean(), buf.readBoolean())
+    val output = buf.readBoolean()
+    val hasChannel = buf.readBoolean()
+    val channels = buf.readByte().toInt()
+    val type = buf.readByte().toInt()
+    return P2PInfo(freq, pos, world, facing, name, output, hasChannel, channels, type)
 }
 
 fun writeInfo(buf: ByteBuf, info: P2PInfo) {
@@ -29,6 +33,8 @@ fun writeInfo(buf: ByteBuf, info: P2PInfo) {
     }
     buf.writeBoolean(info.output)
     buf.writeBoolean(info.hasChannel)
+    buf.writeByte(info.channels)
+    buf.writeByte(info.type)
 }
 
 class S2CRefreshInfo(var infos: List<P2PInfo> = emptyList()) : IMessage {

@@ -4,7 +4,17 @@ import com.projecturanus.betterp2p.client.gui.InfoWrapper
 import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
 
-class P2PInfo(val frequency: Short, val pos: BlockPos, val world: Int, val facing: EnumFacing, val name: String, val output: Boolean, val hasChannel: Boolean) {
+class P2PInfo(
+    val frequency: Short,
+    val pos: BlockPos,
+    val world: Int,
+    val facing: EnumFacing,
+    val name: String,
+    val output: Boolean,
+    val hasChannel: Boolean,
+    val channels: Int,
+    val type: Int
+) {
     override fun hashCode(): Int {
         return hashP2P(pos, facing.ordinal, world).hashCode()
     }
