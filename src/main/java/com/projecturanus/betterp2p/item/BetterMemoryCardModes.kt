@@ -40,7 +40,11 @@ enum class BetterMemoryCardModes(val unlocalizedName: String, vararg val unlocal
 
     fun next(reverse: Boolean = false): BetterMemoryCardModes {
         if (reverse) {
-            return values()[(ordinal - 1).rem(values().size)]
+            return if (ordinal - 1 < 0) {
+                values()[values().size - 1]
+            } else {
+                values()[(ordinal - 1).rem(values().size)]
+            }
         }
         return values()[(ordinal + 1).rem(values().size)]
     }
