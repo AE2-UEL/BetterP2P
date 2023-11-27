@@ -1,35 +1,50 @@
 package com.projecturanus.betterp2p.network
 
+import appeng.api.networking.IGrid
 import com.projecturanus.betterp2p.MODID
-import com.projecturanus.betterp2p.capability.MemoryInfo
-import com.projecturanus.betterp2p.util.p2p.P2PStatus
+import com.projecturanus.betterp2p.network.data.GridServerCache
+import com.projecturanus.betterp2p.network.data.MemoryInfo
+import com.projecturanus.betterp2p.network.packet.*
 import net.minecraft.entity.player.EntityPlayer
 import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraftforge.fml.common.network.NetworkRegistry
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper
 import net.minecraftforge.fml.relauncher.Side
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
+/**
+ * Network cooldown time in milliseconds
+ */
+const val NETWORK_CD = 250L
+
+/**
+ * Mod network manager. Handles server <-> client communication.
+ */
 object ModNetwork {
     val channel: SimpleNetworkWrapper = NetworkRegistry.INSTANCE.newSimpleChannel(MODID)
-    private var netCache: MutableMap<UUID, NetworkState> = mutableMapOf()
+
+    /** for client requests (changing viewed p2p) */
+    val playerState: MutableMap<UUID, PlayerRequest> = Collections.synchronizedMap(WeakHashMap())
+
+    /** Network Thread */
     private lateinit var networkWorker: ScheduledThreadPoolExecutor
 
     fun registerNetwork() {
-        channel.registerMessage(ClientOpenGuiHandler::class.java, S2CListP2P::class.java, 0, Side.CLIENT)
-        channel.registerMessage(ClientRefreshInfoHandler::class.java, S2CRefreshInfo::class.java, 1, Side.CLIENT)
+        var id = 0
+        channel.registerMessage(ClientOpenGuiHandler::class.java, S2COpenGui::class.java, id++, Side.CLIENT)
+        channel.registerMessage(ClientUpdateP2PHandler::class.java, S2CUpdateP2P::class.java, id++, Side.CLIENT)
 
-        channel.registerMessage(ServerLinkP2PHandler::class.java, C2SLinkP2P::class.java, 2, Side.SERVER)
-        channel.registerMessage(ServerCloseGuiHandler::class.java, C2SCloseGui::class.java, 3, Side.SERVER)
-        channel.registerMessage(ServerUpdateInfoHandler::class.java, C2SUpdateInfo::class.java, 4, Side.SERVER)
+        channel.registerMessage(ServerLinkP2PHandler::class.java, C2SLinkP2P::class.java, id++, Side.SERVER)
+        channel.registerMessage(ServerCloseGuiHandler::class.java, C2SCloseGui::class.java, id++, Side.SERVER)
+        channel.registerMessage(ServerUpdateInfoHandler::class.java, C2SUpdateMemoryInfo::class.java, id++, Side.SERVER)
 
-        channel.registerMessage(ServerRenameP2PTunnel::class.java, C2SP2PTunnelInfo::class.java, 5, Side.SERVER)
-        channel.registerMessage(ServerRefreshP2PListHandler::class.java, C2SRefreshP2PList::class.java, 6, Side.SERVER)
-        channel.registerMessage(ServerUnlinkP2PHandler::class.java, C2SUnlinkP2P::class.java, 7, Side.SERVER)
-        channel.registerMessage(ServerTypeChangeHandler::class.java, C2STypeChange::class.java, 8, Side.SERVER)
+        channel.registerMessage(ServerRenameP2PTunnel::class.java, C2SRenameP2P::class.java, id++, Side.SERVER)
+        channel.registerMessage(ServerRefreshP2PListHandler::class.java, C2SRefreshP2PList::class.java, id++, Side.SERVER)
+        channel.registerMessage(ServerUnlinkP2PHandler::class.java, C2SUnlinkP2P::class.java, id++, Side.SERVER)
+        channel.registerMessage(ServerTypeChangeHandler::class.java, C2STypeChange::class.java, id++, Side.SERVER)
         networkWorker = ScheduledThreadPoolExecutor(1, ThreadFactory {
             val th = Thread(it)
             th.name = "BetterP2P-NetworkWorker"
@@ -40,28 +55,65 @@ object ModNetwork {
     }
 
     /**
-     * Utility function that asks for a p2p update. Multiple requests are bundled into 1.
+     * Utility function that asks for a full refresh of a specific p2p type.
      */
-    fun queueP2PListUpdate(status: P2PStatus, player: EntityPlayer, info: MemoryInfo? = null) {
-        synchronized(netCache) {
-            val state = netCache.getOrPut(player.uniqueID) { NetworkState() }
-            if (state.updateReady + NETWORK_CD < System.currentTimeMillis()) {
-                channel.sendTo(S2CListP2P(status.refresh(status.lastP2PType)), player as EntityPlayerMP)
-                state.updateReady = System.currentTimeMillis() + NETWORK_CD
-            } else if (!state.updatePending) {
-                state.updatePending = true
+    fun requestP2PList(player: EntityPlayer, type: Int) {
+        synchronized(playerState) {
+            val playerState = playerState[player.uniqueID] ?: return
+            val cache = playerState.gridCache
+
+            cache.type = type
+            if (playerState.updateReady + NETWORK_CD < System.currentTimeMillis()) {
+                channel.sendTo(S2CUpdateP2P(cache.retrieveP2PList(), true), player as EntityPlayerMP)
+                playerState.updateReady = System.currentTimeMillis() + NETWORK_CD
+            } else if (!playerState.updatePending) {
+                playerState.updatePending = true
                 networkWorker.schedule({
-                    if (info == null) {
-                        channel.sendTo(S2CListP2P(status.refresh(status.lastP2PType)), player as EntityPlayerMP)
-                    } else {
-                        channel.sendTo(S2CListP2P(status.refresh(status.lastP2PType), info), player as EntityPlayerMP)
+                    synchronized(ModNetwork.playerState) {
+                        channel.sendTo(S2CUpdateP2P(cache.retrieveP2PList(), true), player as EntityPlayerMP)
+                        playerState.updatePending = false
                     }
-                    synchronized(netCache) {
-                        state.updatePending = false
-                    }
-                }, state.updateReady - System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+                }, playerState.updateReady - System.currentTimeMillis(), TimeUnit.MILLISECONDS)
             }
         }
+    }
+
+    /**
+     * Utility function that asks for a p2p update. Multiple requests are bundled into 1.
+     * If dirty, only an incremental update is sent.
+     */
+    fun requestP2PUpdate(player: EntityPlayer) {
+        synchronized(playerState) {
+            val playerState = playerState[player.uniqueID] ?: return
+            val cache = playerState.gridCache
+
+            if (playerState.updateReady + NETWORK_CD < System.currentTimeMillis()) {
+                channel.sendTo(S2CUpdateP2P(cache.getP2PUpdates()), player as EntityPlayerMP)
+                playerState.updateReady = System.currentTimeMillis() + NETWORK_CD
+            } else if (!playerState.updatePending) {
+                playerState.updatePending = true
+                networkWorker.schedule({
+                    synchronized(ModNetwork.playerState) {
+                        channel.sendTo(S2CUpdateP2P(cache.getP2PUpdates()), player as EntityPlayerMP)
+                        playerState.updatePending = false
+                    }
+                }, playerState.updateReady - System.currentTimeMillis(), TimeUnit.MILLISECONDS)
+            }
+        }
+    }
+
+    /**
+     * Sets up a connection.
+     */
+    fun initConnection(player: EntityPlayer, grid: IGrid, info: MemoryInfo) {
+        val cache = GridServerCache(grid, player, info.type)
+
+        playerState[player.uniqueID] = PlayerRequest(gridCache = cache)
+        channel.sendTo(S2COpenGui(cache.retrieveP2PList(), info), player as EntityPlayerMP)
+    }
+
+    fun removeConnection(player: EntityPlayer) {
+        playerState.remove(player.uniqueID)
     }
 
     fun stop() {
@@ -69,12 +121,11 @@ object ModNetwork {
     }
 }
 
-internal data class NetworkState(
-    internal var updatePending: Boolean = false,
-    internal var updateReady: Long = System.currentTimeMillis()
-)
-
 /**
- * Network cooldown time in milliseconds
+ * Keeps track of when to send network updates.
  */
-const val NETWORK_CD = 250L
+data class PlayerRequest (
+    internal var updatePending: Boolean = false,
+    internal var updateReady: Long = System.currentTimeMillis(),
+    val gridCache: GridServerCache
+)

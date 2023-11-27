@@ -1,21 +1,34 @@
-package com.projecturanus.betterp2p.network
+package com.projecturanus.betterp2p.network.data
 
-import com.projecturanus.betterp2p.capability.MemoryInfo
 import com.projecturanus.betterp2p.client.gui.widget.GuiScale
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import io.netty.buffer.ByteBuf
-import net.minecraftforge.fml.common.network.simpleimpl.IMessage
+
+const val TUNNEL_ANY: Int = -1
+data class MemoryInfo(var selectedEntry: P2PLocation? = null,
+                      var frequency: Short = 0,
+                      var mode: BetterMemoryCardModes = BetterMemoryCardModes.OUTPUT,
+                      var guiScale: GuiScale = GuiScale.DYNAMIC,
+                      var type: Int = TUNNEL_ANY)
 
 fun writeMemoryInfo(buf: ByteBuf, info: MemoryInfo) {
-    buf.writeLong(info.selectedEntry)
+    val hasSelected = info.selectedEntry != null
+
+    buf.writeBoolean(hasSelected)
+    if (hasSelected) {
+        writeP2PLocation(buf, info.selectedEntry!!)
+    }
     buf.writeShort(info.frequency.toInt())
     buf.writeInt(info.mode.ordinal)
-    buf.writeByte(info.gui.ordinal)
+    buf.writeByte(info.guiScale.ordinal)
     buf.writeByte(info.type)
 }
 
 fun readMemoryInfo(buf: ByteBuf): MemoryInfo {
-    val selectedEntry = buf.readLong()
+    var selectedEntry: P2PLocation? = null
+    if (buf.readBoolean()) {
+        selectedEntry = readP2PLocation(buf)
+    }
     val frequency = buf.readShort()
     val mode = try {
         BetterMemoryCardModes.values()[buf.readInt()]
@@ -29,14 +42,4 @@ fun readMemoryInfo(buf: ByteBuf): MemoryInfo {
     }
     val type = buf.readByte().toInt()
     return MemoryInfo(selectedEntry, frequency, mode, gui, type)
-}
-
-class C2SUpdateInfo(var info: MemoryInfo = MemoryInfo()) : IMessage {
-    override fun fromBytes(buf: ByteBuf) {
-        info = readMemoryInfo(buf)
-    }
-
-    override fun toBytes(buf: ByteBuf) {
-        writeMemoryInfo(buf, info)
-    }
 }

@@ -1,26 +1,21 @@
 package com.projecturanus.betterp2p.item
 
+import appeng.api.config.SecurityPermissions
 import appeng.api.networking.IGridHost
+import appeng.api.networking.security.ISecurityGrid
 import appeng.api.util.AEPartLocation
 import appeng.core.CreativeTab
 import appeng.parts.p2p.PartP2PTunnel
-import com.projecturanus.betterp2p.capability.MemoryInfo
-import com.projecturanus.betterp2p.capability.TUNNEL_ANY
 import com.projecturanus.betterp2p.client.ClientCache
 import com.projecturanus.betterp2p.client.gui.widget.GuiScale
 import com.projecturanus.betterp2p.network.ModNetwork
-import com.projecturanus.betterp2p.network.NONE_SELECTED
-import com.projecturanus.betterp2p.network.S2CListP2P
-import com.projecturanus.betterp2p.network.hashP2P
+import com.projecturanus.betterp2p.network.data.*
 import com.projecturanus.betterp2p.util.getPart
-import com.projecturanus.betterp2p.util.p2p.P2PCache
-import com.projecturanus.betterp2p.util.p2p.P2PStatus
 import com.projecturanus.betterp2p.util.p2p.getTypeIndex
 import net.minecraft.client.resources.I18n
 import net.minecraft.client.util.ITooltipFlag
 import net.minecraft.entity.Entity
 import net.minecraft.entity.player.EntityPlayer
-import net.minecraft.entity.player.EntityPlayerMP
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
 import net.minecraft.nbt.NBTTagCompound
@@ -46,14 +41,6 @@ object ItemAdvancedMemoryCard : Item() {
         super.onUpdate(stack, worldIn, entityIn, itemSlot, isSelected)
     }
 
-    private fun sendStatus(status: P2PStatus, info: MemoryInfo, player: EntityPlayerMP) {
-        P2PCache.statusMap[player.uniqueID] = status
-        ModNetwork.channel.sendTo(
-            S2CListP2P(status.refresh(info.type), info),
-            player
-        )
-    }
-
     @SideOnly(Side.CLIENT)
     override fun addInformation(stack: ItemStack, worldIn: World?, tooltip: MutableList<String>, flagIn: ITooltipFlag) {
         val info = getInfo(stack)
@@ -77,29 +64,25 @@ object ItemAdvancedMemoryCard : Item() {
             val te = w.getTileEntity(pos)
             if (te is IGridHost && te.getGridNode(AEPartLocation.fromFacing(side)) != null) {
                 val part = getPart(w, pos, hx, hy, hz)
+                val grid = part?.gridNode?.grid ?: return EnumActionResult.FAIL
+
+                if (grid is ISecurityGrid && !grid.hasPermission(player, SecurityPermissions.BUILD)) {
+                    return EnumActionResult.FAIL
+                }
+
                 val stack = player.getHeldItem(hand)
                 val info = getInfo(stack)
                 val type: Int
-                val status: P2PStatus
                 if (part is PartP2PTunnel<*>) {
                     type = part.getTypeIndex()
-                    status = P2PStatus(part.gridNode.grid, player, type)
-                    info.selectedEntry = hashP2P(part)
+                    info.selectedEntry = part.toLoc()
                 } else {
                     type = TUNNEL_ANY
-                    status = if (part != null) {
-                        // If we have a PartP2PTunnelME, it looks at the P2P grid node,
-                        // so we should use the part instead.
-                        P2PStatus(part.gridNode.grid, player, type)
-                    } else {
-                        // Fall back to the tile entity.
-                        P2PStatus(te.getGridNode(AEPartLocation.fromFacing(side))!!.grid, player, type)
-                    }
-                    info.selectedEntry = NONE_SELECTED
+                    info.selectedEntry = null
                 }
                 info.type = type
                 writeInfo(stack, info)
-                sendStatus(status, info, player as EntityPlayerMP)
+                ModNetwork.initConnection(player, grid, info)
                 return EnumActionResult.SUCCESS
             }
         }
@@ -113,20 +96,23 @@ object ItemAdvancedMemoryCard : Item() {
     fun getInfo(stack: ItemStack): MemoryInfo {
         if (stack.item != this) throw ClassCastException("Cannot cast ${stack.item.javaClass.name} to ${javaClass.name}")
 
-        if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
+        // Initialize NBT if it isn't already a thing
+        if (stack.tagCompound == null) {
+            stack.tagCompound = NBTTagCompound()
+        }
         val compound = stack.tagCompound!!
         if (!compound.hasKey("gui")) {
             compound.setByte("gui", GuiScale.DYNAMIC.ordinal.toByte())
         }
-        if (!compound.hasKey("selectedIndex", Constants.NBT.TAG_LONG)) {
-            compound.setLong("selectedIndex", NONE_SELECTED)
+        if (!compound.hasKey("selectedIndex", Constants.NBT.TAG_COMPOUND)) {
+            compound.setTag("selectedIndex", NBTTagCompound())
         }
 
         return MemoryInfo(
-            compound.getLong("selectedIndex"),
-            compound.getShort("fruequency"),
-            BetterMemoryCardModes.values()[compound.getInteger("mode")],
-            GuiScale.values()[compound.getByte("gui").toInt()]
+            selectedEntry = readP2PLocation(compound.getCompoundTag("selectedIndex")),
+            frequency = compound.getShort("frequency"),
+            mode = BetterMemoryCardModes.values()[compound.getInteger("mode")],
+            guiScale = GuiScale.values()[compound.getByte("gui").toInt()]
         )
 
     }
@@ -136,9 +122,9 @@ object ItemAdvancedMemoryCard : Item() {
 
         if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
         val compound = stack.tagCompound!!
-        compound.setLong("selectedIndex", info.selectedEntry)
+        compound.setTag("selectedIndex", writeP2PLocation(info.selectedEntry))
         compound.setShort("frequency", info.frequency)
         compound.setInteger("mode", info.mode.ordinal)
-        compound.setByte("gui", info.gui.ordinal.toByte())
+        compound.setByte("gui", info.guiScale.ordinal.toByte())
     }
 }

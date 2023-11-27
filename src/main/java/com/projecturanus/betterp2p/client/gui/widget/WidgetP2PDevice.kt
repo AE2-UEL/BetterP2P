@@ -1,10 +1,10 @@
 package com.projecturanus.betterp2p.client.gui.widget
 
-import com.projecturanus.betterp2p.capability.TUNNEL_ANY
 import com.projecturanus.betterp2p.client.gui.*
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
-import com.projecturanus.betterp2p.network.C2STypeChange
 import com.projecturanus.betterp2p.network.ModNetwork
+import com.projecturanus.betterp2p.network.data.TUNNEL_ANY
+import com.projecturanus.betterp2p.network.packet.C2STypeChange
 import com.projecturanus.betterp2p.util.p2p.ClientTunnelInfo
 import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.renderer.Tessellator
@@ -60,7 +60,7 @@ class WidgetP2PDevice(
         } else {
             // Other modes:
             // Bind allowed only if currently not selected && selected is unbound; OR not bound to selected
-            info.bindButton.enabled = info.code != selectedInfo!!.code &&
+            info.bindButton.enabled = info.loc != selectedInfo!!.loc &&
                 (selectedInfo!!.frequency == 0.toShort() ||
                     info.frequency != selectedInfo!!.frequency)
             info.unbindButton.enabled = false
@@ -71,7 +71,7 @@ class WidgetP2PDevice(
         val info = infoSupplier()
         if (info != null) {
             // draw the background first
-            if (selectedInfo?.code == info.code) {
+            if (selectedInfo?.loc == info.loc ) {
                 GuiScreen.drawRect(x, y, x + P2PEntryConstants.WIDTH, y + P2PEntryConstants.HEIGHT, P2PEntryConstants.SELECTED_COLOR)
             } else if (info.error) {
                 // P2P output without an input, or unbound
@@ -87,7 +87,7 @@ class WidgetP2PDevice(
             GL11.glColor3f(255f, 255f, 255f)
             // Draw our icons...
             drawBlockIcon(gui.mc, info.icon, info.overlay, x + 3, y + 3)
-            gui.bindTexture(gui.BACKGROUND)
+            gui.bindTexture(gui.background)
             if (info.output) {
                 drawTexturedQuad(Tessellator.getInstance(), x.toDouble(), y + 4.0, x + 16.0, y + 20.0,
                     144.0 / GUI_WIDTH, 200.0 / GUI_TEX_HEIGHT, 160.0 / GUI_WIDTH, 216.0 / GUI_TEX_HEIGHT)
@@ -142,8 +142,8 @@ class WidgetP2PDevice(
         }
     }
     override fun accept(type: ClientTunnelInfo?) {
-        ModNetwork.channel.sendToServer(C2STypeChange(type?.index ?: TUNNEL_ANY, infoSupplier()!!.code))
-        gui.closeTypeSelector()
+        ModNetwork.channel.sendToServer(C2STypeChange(type?.index ?: TUNNEL_ANY, infoSupplier()!!.loc))
+        gui.closeTypeSelector(type)
     }
 
     override fun x(): Int {

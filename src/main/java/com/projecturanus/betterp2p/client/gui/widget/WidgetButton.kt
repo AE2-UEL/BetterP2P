@@ -1,6 +1,5 @@
 package com.projecturanus.betterp2p.client.gui.widget
 
-import com.projecturanus.betterp2p.MODID
 import com.projecturanus.betterp2p.client.gui.GUI_TEX_HEIGHT
 import com.projecturanus.betterp2p.client.gui.GUI_WIDTH
 import com.projecturanus.betterp2p.client.gui.GuiAdvancedMemoryCard
@@ -9,9 +8,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiButton
 import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.Tessellator
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import org.lwjgl.opengl.GL11
-import kotlin.math.exp
 
 /**
  * Widget button for stuff.
@@ -51,7 +48,7 @@ abstract class WidgetButton(val gui: GuiAdvancedMemoryCard, x: Int, y: Int, widt
     }
 
     open fun drawBG(tessellator: Tessellator, mouseX: Int, mouseY: Int, partial: Float) {
-        gui.bindTexture(gui.BACKGROUND)
+        gui.bindTexture(gui.background)
         GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f)
         hovered = mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height
         val k = getHoverState(hovered)

@@ -1,12 +1,14 @@
 package com.projecturanus.betterp2p.client.gui.widget
 
 import com.projecturanus.betterp2p.BetterP2P
-import com.projecturanus.betterp2p.capability.P2PTunnelInfo
 import com.projecturanus.betterp2p.client.gui.GuiAdvancedMemoryCard
 import com.projecturanus.betterp2p.client.gui.InfoList
 import com.projecturanus.betterp2p.client.gui.InfoWrapper
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
-import com.projecturanus.betterp2p.network.*
+import com.projecturanus.betterp2p.network.ModNetwork
+import com.projecturanus.betterp2p.network.packet.C2SLinkP2P
+import com.projecturanus.betterp2p.network.packet.C2SRenameP2P
+import com.projecturanus.betterp2p.network.packet.C2SUnlinkP2P
 import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.gui.GuiTextField
 import org.lwjgl.input.Keyboard
@@ -58,21 +60,17 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
         for (widget in entries){
             widget.renderNameTextfield = true
         }
-        if(renameBar.info != null && !renameBar.text.isEmpty() && renameBar.info.name != renameBar.text){
-            val info:InfoWrapper = renameBar.info
+        if(renameBar.info != null && renameBar.text.isNotEmpty() && renameBar.info.name != renameBar.text){
+            val info: InfoWrapper = renameBar.info
+
             renameBar.text = renameBar.text.trim()
-            ModNetwork.channel.sendToServer(C2SP2PTunnelInfo(P2PTunnelInfo(info.pos, info.dim, info.facing, renameBar.text)))
+            ModNetwork.channel.sendToServer(C2SRenameP2P(info.loc, renameBar.text))
         }
         renameBar.visible = false
         renameBar.text = ""
         renameBar.isFocused = false
         renameBar.info = null
     }
-
-//private fun transportPlayer(info: InfoWrapper){
-//    Minecraft.getMinecraft().thePlayer.closeScreen()
-//    ModNetwork.channel.sendToServer(C2STransportPlayer(P2PTunnelInfo(info.posX,info.posY,info.posZ,info.dim,0)))
-//}
 
     /**
      * Called when rename button "area" is clicked. Rename text bar must be
@@ -95,27 +93,27 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
         if (mouseButton == 1) {
             gui.openTypeSelector(widget, false)
         } else if (selectedInfo.get() != info) {
-            gui.selectInfo(info.code)
+            gui.selectInfo(info.loc)
         }
 
         info.bindButton.playPressSound(gui.mc.soundHandler)
     }
 
     private fun onBindButtonClicked(info: InfoWrapper) {
-        if (infos.selectedEntry == NONE_SELECTED) return
+        if (infos.selectedEntry == null) return
         when (mode()) {
             BetterMemoryCardModes.INPUT -> {
-                BetterP2P.logger.debug("Bind ${info.code} as input")
-                ModNetwork.channel.sendToServer(C2SLinkP2P(info.code, infos.selectedEntry))
+                BetterP2P.logger.debug("Bind ${info.loc} as input")
+                ModNetwork.channel.sendToServer(C2SLinkP2P(info.loc, infos.selectedEntry))
             }
             BetterMemoryCardModes.OUTPUT -> {
-                BetterP2P.logger.debug("Bind ${info.code} as output")
-                ModNetwork.channel.sendToServer(C2SLinkP2P(infos.selectedEntry, info.code))
+                BetterP2P.logger.debug("Bind ${info.loc} as output")
+                ModNetwork.channel.sendToServer(C2SLinkP2P(infos.selectedEntry, info.loc))
             }
             BetterMemoryCardModes.COPY -> {
                 val input = findInput(infos.selectedInfo?.frequency)
                 if (input != null)
-                    ModNetwork.channel.sendToServer(C2SLinkP2P(input.code, info.code))
+                    ModNetwork.channel.sendToServer(C2SLinkP2P(input.loc, info.loc))
             } else -> {
                 BetterP2P.logger.debug("Somehow bind button was pressed while in UNBIND mode.")
             }
@@ -125,7 +123,7 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
 
     private fun onUnbindButtonClicked(info: InfoWrapper) {
         if (info.frequency != 0.toShort()) {
-            ModNetwork.channel.sendToServer(C2SUnlinkP2P(info.code, gui.getTypeID()))
+            ModNetwork.channel.sendToServer(C2SUnlinkP2P(info.loc, gui.getTypeID()))
             info.frequency = 0.toShort()
         }
     }
@@ -155,7 +153,7 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
                 clickRenameButton = true
             } else if (mouseX > widget.x && mouseX < widget.x + P2PEntryConstants.WIDTH &&
                        mouseY > widget.y && mouseY < widget.y + P2PEntryConstants.HEIGHT &&
-                       info != null && selectedInfo.get() != info
+                       info != null
             ) {
                 onSelectButtonClicked(widget, info, mouseButton)
             }

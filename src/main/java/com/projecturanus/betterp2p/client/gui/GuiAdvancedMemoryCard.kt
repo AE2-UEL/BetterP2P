@@ -7,14 +7,20 @@ import appeng.parts.p2p.PartP2PRedstone
 import appeng.parts.p2p.PartP2PTunnelME
 import com.projecturanus.betterp2p.BetterP2P
 import com.projecturanus.betterp2p.MODID
-import com.projecturanus.betterp2p.capability.MemoryInfo
-import com.projecturanus.betterp2p.capability.TUNNEL_ANY
 import com.projecturanus.betterp2p.client.ClientCache
 import com.projecturanus.betterp2p.client.TextureBound
 import com.projecturanus.betterp2p.client.gui.widget.*
 import com.projecturanus.betterp2p.item.BetterMemoryCardModes
 import com.projecturanus.betterp2p.item.MAX_TOOLTIP_LENGTH
-import com.projecturanus.betterp2p.network.*
+import com.projecturanus.betterp2p.network.ModNetwork
+import com.projecturanus.betterp2p.network.data.MemoryInfo
+import com.projecturanus.betterp2p.network.data.P2PInfo
+import com.projecturanus.betterp2p.network.data.P2PLocation
+import com.projecturanus.betterp2p.network.data.TUNNEL_ANY
+import com.projecturanus.betterp2p.network.packet.C2SCloseGui
+import com.projecturanus.betterp2p.network.packet.C2SRefreshP2PList
+import com.projecturanus.betterp2p.network.packet.C2SUpdateMemoryInfo
+import com.projecturanus.betterp2p.network.packet.S2COpenGui
 import com.projecturanus.betterp2p.util.p2p.ClientTunnelInfo
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.FontRenderer
@@ -28,7 +34,7 @@ import org.lwjgl.opengl.GL11
 
 const val GUI_WIDTH = 288
 const val GUI_TEX_HEIGHT = 264
-class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
+class GuiAdvancedMemoryCard(msg: S2COpenGui) : GuiScreen(), TextureBound {
     private var guiLeft: Int = 0
 
     private var guiTop: Int = 0
@@ -43,7 +49,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
             _ySize = lazy { value }
         }
 
-    private var scale = msg.memoryInfo.gui
+    private var scale = msg.memoryInfo.guiScale
     private var resizeButton: WidgetButton
 
     private var mode = msg.memoryInfo.mode
@@ -78,7 +84,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         )
     }
 
-    val BACKGROUND: ResourceLocation = ResourceLocation(MODID, "textures/gui/advanced_memory_card.png")
+    val background: ResourceLocation = ResourceLocation(MODID, "textures/gui/advanced_memory_card.png")
     private val selectedInfo: InfoWrapper?
         get() = infos.selectedInfo
 
@@ -249,7 +255,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
                 this.index = type?.index ?: TUNNEL_ANY
                 gui.type = type
                 commitType()
-                gui.closeTypeSelector()
+                gui.closeTypeSelector(type)
             }
 
             override fun x(): Int {
@@ -349,7 +355,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         buttonList.add(refreshButton)
 
         if (typeSelector.parent != typeButton) {
-            closeTypeSelector()
+            closeTypeSelector(type)
         } else {
             typeSelector.setPos(typeSelector.parent.x(), typeSelector.parent.y())
         }
@@ -367,15 +373,16 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         typeSelector.visible = true
     }
 
-    fun closeTypeSelector() {
+    fun closeTypeSelector(type: ClientTunnelInfo?) {
+        this.type = type
         typeSelector.visible = false
     }
 
     private fun checkInfo() {
-        infos.filtered.forEach { it.error = false }
-        infos.filtered.groupBy { it.frequency }.filter { it.value.none { x -> !x.output } }.forEach { it.value.forEach { info ->
-            info.error = true
-        } }
+//        infos.filtered.forEach { it.error = false }
+//        infos.filtered.groupBy { it.frequency }.filter { it.value.none { x -> !x.output } }.forEach { it.value.forEach { info ->
+//            info.error = true
+//        } }
 
         infos.filtered.forEach {
             it.error = it.frequency != 0.toShort() && if (it.output) {
@@ -387,14 +394,20 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     fun refreshInfo(infos: List<P2PInfo>) {
-        this.infos.rebuild(infos.map(::InfoWrapper))
+        this.infos.rebuild(infos.map(::InfoWrapper), scrollBar, scale.size(height - 75))
+        checkInfo()
+        refreshOverlay()
+    }
+
+    fun updateInfo(infos: List<P2PInfo>) {
+        this.infos.update(infos.map(::InfoWrapper), scrollBar, scale.size(height - 75))
         checkInfo()
         refreshOverlay()
     }
 
     private fun syncMemoryInfo() {
         ModNetwork.channel.sendToServer(
-            C2SUpdateInfo(MemoryInfo(infos.selectedEntry, selectedInfo?.frequency ?: 0, mode, scale, type?.index ?: TUNNEL_ANY)))
+            C2SUpdateMemoryInfo(MemoryInfo(infos.selectedEntry, selectedInfo?.frequency ?: 0, mode, scale, type?.index ?: TUNNEL_ANY)))
     }
 
     override fun onGuiClosed() {
@@ -449,8 +462,8 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
         }
     }
 
-    fun selectInfo(hash: Long) {
-        infos.select(hash)
+    fun selectInfo(which: P2PLocation?) {
+        infos.select(which)
         syncMemoryInfo()
         refreshOverlay()
     }
@@ -460,15 +473,15 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
             ClientCache.selectedPosition = null
             ClientCache.selectedFacing = null
         } else {
-            ClientCache.selectedPosition = selectedInfo?.pos
-            ClientCache.selectedFacing = selectedInfo?.facing
+            ClientCache.selectedPosition = selectedInfo?.loc?.pos
+            ClientCache.selectedFacing = selectedInfo?.loc?.facing
         }
         ClientCache.positions.clear()
         ClientCache.positions.addAll(infos.sorted.filter {
             it.frequency == selectedInfo?.frequency &&
             it != selectedInfo &&
-            it.dim == mc.player.dimension
-        }.map { it.pos to it.facing })
+            it.loc.dim == mc.player.dimension
+        }.map { it.loc.pos to it.loc.facing })
     }
 
 
@@ -526,7 +539,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
     }
 
     private fun drawBackground() {
-        bindTexture(BACKGROUND)
+        bindTexture(background)
 
         val tessellator = Tessellator.getInstance()
 
@@ -558,7 +571,7 @@ class GuiAdvancedMemoryCard(msg: S2CListP2P) : GuiScreen(), TextureBound {
 
     override fun keyTyped(typedChar: Char, keyCode: Int) {
         if (keyCode == Keyboard.KEY_ESCAPE && typeSelector.visible) {
-            closeTypeSelector()
+            closeTypeSelector(type)
             return
         }
         if (keyCode == Keyboard.KEY_LSHIFT || col.keyTyped(typedChar, keyCode)) {
