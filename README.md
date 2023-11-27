@@ -47,7 +47,6 @@ You can Shift-click better memory card to clean this outline.
 - [ ] Documentation
 - [ ] Sort modes
 - [ ] Better predicate to reduce crashes
-- [ ] Backport to 1.7.10
 - [X] A border show in the world to identify the selected P2P device
 - [ ] Optimize cache
 - [ ] A minimap shows all P2P devices
@@ -55,3 +54,6 @@ You can Shift-click better memory card to clean this outline.
 ## Credits
 
 Cyclic for its block outline code
+LasmGratel for the first BetterP2P
+GlodBlock for the first 1.7.10 port
+firenoo for the big revamps <3
