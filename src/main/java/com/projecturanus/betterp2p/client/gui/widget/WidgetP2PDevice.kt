@@ -7,9 +7,9 @@ import com.projecturanus.betterp2p.network.data.TUNNEL_ANY
 import com.projecturanus.betterp2p.network.packet.C2STypeChange
 import com.projecturanus.betterp2p.util.p2p.ClientTunnelInfo
 import net.minecraft.client.gui.GuiScreen
+import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.resources.I18n
-import org.lwjgl.opengl.GL11
 import kotlin.reflect.KProperty0
 
 object P2PEntryConstants {
@@ -84,7 +84,7 @@ class WidgetP2PDevice(
                 GuiScreen.drawRect(x, y, x + P2PEntryConstants.WIDTH, y + P2PEntryConstants.HEIGHT, P2PEntryConstants.OUTPUT_COLOR)
             }
 
-            GL11.glColor3f(255f, 255f, 255f)
+            GlStateManager.color(1F, 1F, 1F, 1F)
             // Draw our icons...
             drawBlockIcon(gui.mc, info.icon, info.overlay, x + 3, y + 3)
             gui.bindTexture(gui.background)

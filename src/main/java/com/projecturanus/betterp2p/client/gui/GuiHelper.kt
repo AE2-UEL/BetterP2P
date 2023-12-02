@@ -1,6 +1,7 @@
 package com.projecturanus.betterp2p.client.gui
 
 import net.minecraft.client.Minecraft
+import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
@@ -31,10 +32,10 @@ fun drawTexturedQuad(tessellator: Tessellator, x0: Double, y0: Double, x1: Doubl
 
 fun drawBlockIcon(mc: Minecraft, icon: ResourceLocation, overlay: ResourceLocation = ResourceLocation("appliedenergistics2", "textures/items/part/p2p_tunnel_front.png"), x: Int, y: Int, width: Double = 16.0, height: Double = 16.0) {
     val tessellator = Tessellator.getInstance()
-    GL11.glPushAttrib(GL11.GL_BLEND or GL11.GL_TEXTURE_2D or GL11.GL_COLOR)
-    GL11.glEnable(GL11.GL_BLEND)
-    GL11.glEnable(GL11.GL_TEXTURE_2D)
-    GL11.glColor3f(255f, 255f, 255f)
+    GlStateManager.enableBlend()
+    GlStateManager.enableTexture2D()
+    GlStateManager.enableAlpha()
+    GlStateManager.color(1f, 1f, 1f, 1f)
     OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
     mc.textureManager.bindTexture(icon)
     drawTexturedQuad(tessellator,
@@ -52,5 +53,5 @@ fun drawBlockIcon(mc: Minecraft, icon: ResourceLocation, overlay: ResourceLocati
         y1 = y + height,
         u0 = 0.0, v0 = 0.0,
         u1 = 1.0, v1 = 1.0)
-    GL11.glPopAttrib()
+    GlStateManager.disableBlend()
 }

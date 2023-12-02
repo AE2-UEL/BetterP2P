@@ -25,12 +25,12 @@ import com.projecturanus.betterp2p.util.p2p.ClientTunnelInfo
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.FontRenderer
 import net.minecraft.client.gui.GuiScreen
+import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.resources.I18n
 import net.minecraft.util.ResourceLocation
 import org.lwjgl.input.Keyboard
 import org.lwjgl.input.Mouse
-import org.lwjgl.opengl.GL11
 
 const val GUI_WIDTH = 288
 const val GUI_TEX_HEIGHT = 264
@@ -418,6 +418,7 @@ class GuiAdvancedMemoryCard(msg: S2COpenGui) : GuiScreen(), TextureBound {
     }
 
     override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
+//        GL11.glColor4f(1f, 1f, 1f, 1f)
         drawDefaultBackground()
         drawBackground()
 
@@ -429,15 +430,20 @@ class GuiAdvancedMemoryCard(msg: S2COpenGui) : GuiScreen(), TextureBound {
         }
 
         // drawing
-        GL11.glPushAttrib(GL11.GL_BLEND or GL11.GL_TEXTURE_2D or GL11.GL_COLOR)
-        GL11.glEnable(GL11.GL_BLEND)
-        GL11.glEnable(GL11.GL_TEXTURE_2D)
-        GL11.glColor3f(255f, 255f, 255f)
+//        GL11.glPushAttrib(GL11.GL_BLEND or GL11.GL_TEXTURE_2D or GL11.GL_COLOR)
+        GlStateManager.enableBlend()
+        GlStateManager.enableTexture2D()
+//        GL11.glEnable(GL11.GL_BLEND)
+        GlStateManager.color(1F, 1F, 1F, 1F)
+//        GL11.glEnable(GL11.GL_TEXTURE_2D)
+//        GL11.glColor3f(255f, 255f, 255f)
         scrollBar.draw(this)
 
         col.render(mouseX, mouseY, partialTicks)
         // The GL sate is already messed up here by string drawing but oh well
-        GL11.glPopAttrib()
+//        GL11.glPopAttrib()
+        GlStateManager.disableBlend()
+        GlStateManager.disableTexture2D()
 
         if (typeSelector.visible) {
             typeSelector.render(this, mouseX, mouseY, partialTicks)

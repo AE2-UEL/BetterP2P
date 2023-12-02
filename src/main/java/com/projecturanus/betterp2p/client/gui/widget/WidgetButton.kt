@@ -6,6 +6,7 @@ import com.projecturanus.betterp2p.client.gui.GuiAdvancedMemoryCard
 import com.projecturanus.betterp2p.client.gui.drawTexturedQuad
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiButton
+import net.minecraft.client.renderer.GlStateManager
 import net.minecraft.client.renderer.OpenGlHelper
 import net.minecraft.client.renderer.Tessellator
 import org.lwjgl.opengl.GL11
@@ -49,10 +50,10 @@ abstract class WidgetButton(val gui: GuiAdvancedMemoryCard, x: Int, y: Int, widt
 
     open fun drawBG(tessellator: Tessellator, mouseX: Int, mouseY: Int, partial: Float) {
         gui.bindTexture(gui.background)
-        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f)
+        GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f)
         hovered = mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height
         val k = getHoverState(hovered)
-        GL11.glEnable(GL11.GL_BLEND)
+        GlStateManager.enableBlend()
         OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
         // background
         drawTexturedQuad(tessellator, x.toDouble(), y.toDouble(),
