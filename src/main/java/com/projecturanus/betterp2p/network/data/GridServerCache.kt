@@ -143,7 +143,7 @@ class GridServerCache(private val grid: IGrid, val player: EntityPlayer, var typ
 
 
         // If tunnel was already bound, unbind that one
-        if (cache.getInputs(frequency, input::class.java).first() != null) {
+        if (cache.getInputs(frequency, input::class.java).firstOrNull() != null) {
             val originalInput = cache.getInputs(frequency, input::class.java).first()
             if (originalInput != input) {
                 updateP2P(originalInput.toLoc(), originalInput, frequency, true, input.customInventoryName)
