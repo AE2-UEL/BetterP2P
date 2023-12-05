@@ -1,7 +1,7 @@
 package com.projecturanus.betterp2p.network
 
 import appeng.api.networking.IGrid
-import com.projecturanus.betterp2p.Tags
+import com.projecturanus.betterp2p.MODID
 import com.projecturanus.betterp2p.network.data.GridServerCache
 import com.projecturanus.betterp2p.network.data.MemoryInfo
 import com.projecturanus.betterp2p.network.packet.*
@@ -24,7 +24,7 @@ const val NETWORK_CD = 250L
  * Mod network manager. Handles server <-> client communication.
  */
 object ModNetwork {
-    val channel: SimpleNetworkWrapper = NetworkRegistry.INSTANCE.newSimpleChannel(Tags.MODID)
+    val channel: SimpleNetworkWrapper = NetworkRegistry.INSTANCE.newSimpleChannel(MODID)
 
     /** for client requests (changing viewed p2p) */
     val playerState: MutableMap<UUID, PlayerRequest> = Collections.synchronizedMap(WeakHashMap())

@@ -6,7 +6,7 @@ import appeng.parts.p2p.PartP2PGTCEPower
 import appeng.parts.p2p.PartP2PRedstone
 import appeng.parts.p2p.PartP2PTunnelME
 import com.projecturanus.betterp2p.BetterP2P
-import com.projecturanus.betterp2p.Tags
+import com.projecturanus.betterp2p.MODID
 import com.projecturanus.betterp2p.client.ClientCache
 import com.projecturanus.betterp2p.client.TextureBound
 import com.projecturanus.betterp2p.client.gui.widget.*
@@ -68,7 +68,7 @@ class GuiAdvancedMemoryCard(msg: S2COpenGui) : GuiScreen(), TextureBound {
     private val typeSelector: WidgetTypeSelector
 
     private val searchText: String
-        get() = searchBar.getText()
+        get() = searchBar.text
 
     private lateinit var col: WidgetP2PColumn
 
@@ -84,7 +84,7 @@ class GuiAdvancedMemoryCard(msg: S2COpenGui) : GuiScreen(), TextureBound {
         )
     }
 
-    val background: ResourceLocation = ResourceLocation(Tags.MODID, "textures/gui/advanced_memory_card.png")
+    val background: ResourceLocation = ResourceLocation(MODID, "textures/gui/advanced_memory_card.png")
     private val selectedInfo: InfoWrapper?
         get() = infos.selectedInfo
 
