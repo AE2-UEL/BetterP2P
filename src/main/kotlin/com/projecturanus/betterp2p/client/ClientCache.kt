@@ -4,15 +4,15 @@ import net.minecraft.util.EnumFacing
 import net.minecraft.util.math.BlockPos
 
 object ClientCache {
-    val positions = mutableListOf<Pair<BlockPos, EnumFacing>>()
-    var selectedPosition: BlockPos? = null
-    var selectedFacing: EnumFacing? = null
-    var searchText: String = ""
+  val positions = mutableListOf<Pair<BlockPos, EnumFacing>>()
+  var selectedPosition: BlockPos? = null
+  var selectedFacing: EnumFacing? = null
+  var searchText: String = ""
 
-    fun clear() {
-        positions.clear()
-        selectedPosition = null
-        selectedFacing = null
-        searchText = ""
-    }
+  fun clear() {
+    positions.clear()
+    selectedPosition = null
+    selectedFacing = null
+    searchText = ""
+  }
 }

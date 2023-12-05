@@ -10,23 +10,23 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext
 
 class C2SUpdateMemoryInfo(var info: MemoryInfo = MemoryInfo()) : IMessage {
-    override fun fromBytes(buf: ByteBuf) {
-        info = readMemoryInfo(buf)
-    }
+  override fun fromBytes(buf: ByteBuf) {
+    info = readMemoryInfo(buf)
+  }
 
-    override fun toBytes(buf: ByteBuf) {
-        writeMemoryInfo(buf, info)
-    }
+  override fun toBytes(buf: ByteBuf) {
+    writeMemoryInfo(buf, info)
+  }
 }
 
 class ServerUpdateInfoHandler : IMessageHandler<C2SUpdateMemoryInfo, IMessage?> {
-    override fun onMessage(message: C2SUpdateMemoryInfo, ctx: MessageContext): IMessage? {
-        val player = ctx.serverHandler.player
-        val stack = player.getHeldItem(player.activeHand)
+  override fun onMessage(message: C2SUpdateMemoryInfo, ctx: MessageContext): IMessage? {
+    val player = ctx.serverHandler.player
+    val stack = player.getHeldItem(player.activeHand)
 
-        if (stack.item is ItemAdvancedMemoryCard) {
-            ItemAdvancedMemoryCard.writeInfo(stack, message.info)
-        }
-        return null
+    if (stack.item is ItemAdvancedMemoryCard) {
+      ItemAdvancedMemoryCard.writeInfo(stack, message.info)
     }
+    return null
+  }
 }

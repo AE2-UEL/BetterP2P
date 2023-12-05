@@ -13,43 +13,43 @@ import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
 class S2CUpdateP2P(var infos: List<P2PInfo> = emptyList(), var clear: Boolean = false) : IMessage {
-    override fun fromBytes(buf: ByteBuf) {
-        val length = buf.readInt()
-        val list = ArrayList<P2PInfo>(length)
+  override fun fromBytes(buf: ByteBuf) {
+    val length = buf.readInt()
+    val list = ArrayList<P2PInfo>(length)
 
-        for (i in 0 until length) {
-            val info = readP2PInfo(buf)
+    for (i in 0 until length) {
+      val info = readP2PInfo(buf)
 
-            if (info != null) {
-                list.add(info)
-            }
-        }
-
-        infos = list
-        clear = buf.readBoolean()
+      if (info != null) {
+        list.add(info)
+      }
     }
 
-    override fun toBytes(buf: ByteBuf) {
-        buf.writeInt(infos.size)
-        infos.forEach { writeP2PInfo(buf, it) }
-        buf.writeBoolean(clear)
-    }
+    infos = list
+    clear = buf.readBoolean()
+  }
+
+  override fun toBytes(buf: ByteBuf) {
+    buf.writeInt(infos.size)
+    infos.forEach { writeP2PInfo(buf, it) }
+    buf.writeBoolean(clear)
+  }
 }
 
 class ClientUpdateP2PHandler : IMessageHandler<S2CUpdateP2P, IMessage?> {
-    @SideOnly(Side.CLIENT)
-    override fun onMessage(message: S2CUpdateP2P, ctx: MessageContext): IMessage? {
-        Minecraft.getMinecraft().addScheduledTask {
-            val gui = Minecraft.getMinecraft().currentScreen
+  @SideOnly(Side.CLIENT)
+  override fun onMessage(message: S2CUpdateP2P, ctx: MessageContext): IMessage? {
+    Minecraft.getMinecraft().addScheduledTask {
+      val gui = Minecraft.getMinecraft().currentScreen
 
-            if (gui is GuiAdvancedMemoryCard) {
-                if (message.clear) {
-                    gui.refreshInfo(message.infos)
-                } else {
-                    gui.updateInfo(message.infos)
-                }
-            }
+      if (gui is GuiAdvancedMemoryCard) {
+        if (message.clear) {
+          gui.refreshInfo(message.infos)
+        } else {
+          gui.updateInfo(message.infos)
         }
-        return null
+      }
     }
+    return null
+  }
 }

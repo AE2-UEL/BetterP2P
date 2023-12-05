@@ -8,9 +8,9 @@ import net.minecraftforge.fml.relauncher.Side
 
 @Mod.EventBusSubscriber(modid = Tags.MODID, value = [Side.SERVER])
 object ServerPlayerDisconnectHandler {
-    @JvmStatic
-    @SubscribeEvent
-    fun onLoggedOut(event: PlayerEvent.PlayerLoggedOutEvent) {
-        ModNetwork.removeConnection(event.player)
-    }
+  @JvmStatic
+  @SubscribeEvent
+  fun onLoggedOut(event: PlayerEvent.PlayerLoggedOutEvent) {
+    ModNetwork.removeConnection(event.player)
+  }
 }
