@@ -1,15 +1,12 @@
 # exclude all
 /*
 
-# need gradle
+# need gradle 
 !gradle/
 !gradlew
 !gradlew.bat
 !build.gradle
 !gradle.properties
-!dependencies.gradle
-!repositories.gradle
-!settings.gradle
 
 # include markdowns
 !README.md
