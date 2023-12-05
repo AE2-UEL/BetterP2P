@@ -1,6 +1,6 @@
 package com.projecturanus.betterp2p.client.render
 
-import com.projecturanus.betterp2p.MODID
+import com.projecturanus.betterp2p.Tags
 import com.projecturanus.betterp2p.client.ClientCache
 import com.projecturanus.betterp2p.item.ItemAdvancedMemoryCard
 import net.minecraft.client.Minecraft
@@ -9,7 +9,7 @@ import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.relauncher.Side
 
-@Mod.EventBusSubscriber(modid = MODID, value = [Side.CLIENT])
+@Mod.EventBusSubscriber(modid = Tags.MODID, value = [Side.CLIENT])
 object RenderHandler {
     @JvmStatic
     @SubscribeEvent

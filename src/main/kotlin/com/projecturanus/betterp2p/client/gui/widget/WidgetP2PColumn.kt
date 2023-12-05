@@ -60,8 +60,8 @@ class WidgetP2PColumn(private val fontRenderer: FontRenderer,
         for (widget in entries){
             widget.renderNameTextfield = true
         }
-        if(renameBar.info != null && renameBar.text.isNotEmpty() && renameBar.info.name != renameBar.text){
-            val info: InfoWrapper = renameBar.info
+        if(renameBar.info != null && renameBar.text.isNotEmpty() && renameBar.info!!.name != renameBar.text){
+            val info: InfoWrapper = renameBar.info!!
 
             renameBar.text = renameBar.text.trim()
             ModNetwork.channel.sendToServer(C2SRenameP2P(info.loc, renameBar.text))

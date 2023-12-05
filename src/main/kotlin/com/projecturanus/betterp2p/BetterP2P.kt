@@ -9,9 +9,8 @@ import net.minecraftforge.fml.common.event.FMLPostInitializationEvent
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent
 import org.apache.logging.log4j.Logger
 
-const val MODID = "betterp2p"
 
-@Mod(modid = MODID, modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter", dependencies = "required-after: appliedenergistics2; required-after: forgelin;")
+@Mod(modid = Tags.MODID, modLanguageAdapter = "net.shadowfacts.forgelin.KotlinAdapter", dependencies = "required-after: appliedenergistics2; required-after: forgelin;")
 object BetterP2P {
     lateinit var logger: Logger
     @SidedProxy(serverSide = "com.projecturanus.betterp2p.CommonProxy", clientSide = "com.projecturanus.betterp2p.ClientProxy")

@@ -38,7 +38,6 @@ private fun fetch64(lo: ULong, hi: ULong, idx: Int): ULong {
  * City64 hash. It's basically black magic, but here's a link
  * https://opensource.googleblog.com/2011/04/introducing-cityhash.html
  */
-@UseExperimental(kotlin.ExperimentalStdlibApi::class)
 private fun hashLen16(lo: ULong, hi: ULong): ULong {
     val mul: ULong = k2 + 32U
     val a: ULong = lo + k2
