@@ -8,10 +8,9 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 
 @Mod.EventBusSubscriber(modid = Tags.MODID)
 object ModItems {
-  @JvmStatic
-  @SubscribeEvent
-  fun registerItems(event: RegistryEvent.Register<Item>) {
-    event.registry.register(
-        ItemAdvancedMemoryCard.setRegistryName(Tags.MODID, "advanced_memory_card"))
-  }
+    @JvmStatic
+    @SubscribeEvent
+    fun registerItems(event: RegistryEvent.Register<Item>) {
+        event.registry.register(ItemAdvancedMemoryCard.setRegistryName(Tags.MODID, "advanced_memory_card"))
+    }
 }

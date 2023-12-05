@@ -31,129 +31,100 @@ import net.minecraftforge.fml.relauncher.Side
 import net.minecraftforge.fml.relauncher.SideOnly
 
 object ItemAdvancedMemoryCard : Item() {
-  init {
-    maxStackSize = 1
-    translationKey = "advanced_memory_card"
-    creativeTab = CreativeTab.instance
-  }
-
-  override fun onUpdate(
-      stack: ItemStack,
-      worldIn: World,
-      entityIn: Entity,
-      itemSlot: Int,
-      isSelected: Boolean
-  ) {
-    super.onUpdate(stack, worldIn, entityIn, itemSlot, isSelected)
-  }
-
-  @SideOnly(Side.CLIENT)
-  override fun addInformation(
-      stack: ItemStack,
-      worldIn: World?,
-      tooltip: MutableList<String>,
-      flagIn: ITooltipFlag
-  ) {
-    val info = getInfo(stack)
-    tooltip += I18n.format("gui.advanced_memory_card.mode.${info.mode.name.toLowerCase()}")
-  }
-
-  @SideOnly(Side.CLIENT)
-  private fun clearClientCache() {
-    ClientCache.clear()
-  }
-
-  override fun onItemRightClick(
-      worldIn: World,
-      playerIn: EntityPlayer,
-      handIn: EnumHand
-  ): ActionResult<ItemStack> {
-    if (playerIn.isSneaking && worldIn.isRemote) {
-      clearClientCache()
+    init {
+        maxStackSize = 1
+        translationKey = "advanced_memory_card"
+        creativeTab = CreativeTab.instance
     }
-    return super.onItemRightClick(worldIn, playerIn, handIn)
-  }
 
-  override fun onItemUse(
-      player: EntityPlayer,
-      w: World,
-      pos: BlockPos,
-      hand: EnumHand,
-      side: EnumFacing,
-      hx: Float,
-      hy: Float,
-      hz: Float
-  ): EnumActionResult {
-    if (!w.isRemote) {
-      val te = w.getTileEntity(pos)
-      if (te is IGridHost && te.getGridNode(AEPartLocation.fromFacing(side)) != null) {
-        val part = getPart(w, pos, hx, hy, hz)
-        val grid = part?.gridNode?.grid ?: return EnumActionResult.FAIL
+    override fun onUpdate(stack: ItemStack, worldIn: World, entityIn: Entity, itemSlot: Int, isSelected: Boolean) {
+        super.onUpdate(stack, worldIn, entityIn, itemSlot, isSelected)
+    }
 
-        if (grid is ISecurityGrid && !grid.hasPermission(player, SecurityPermissions.BUILD)) {
-          return EnumActionResult.FAIL
-        }
-
-        val stack = player.getHeldItem(hand)
+    @SideOnly(Side.CLIENT)
+    override fun addInformation(stack: ItemStack, worldIn: World?, tooltip: MutableList<String>, flagIn: ITooltipFlag) {
         val info = getInfo(stack)
-        val type: Int
-        if (part is PartP2PTunnel<*>) {
-          type = part.getTypeIndex()
-          info.selectedEntry = part.toLoc()
-        } else {
-          type = TUNNEL_ANY
-          info.selectedEntry = null
+        tooltip += I18n.format("gui.advanced_memory_card.mode.${info.mode.name.toLowerCase()}")
+    }
+
+    @SideOnly(Side.CLIENT)
+    private fun clearClientCache() {
+        ClientCache.clear()
+    }
+
+    override fun onItemRightClick(worldIn: World, playerIn: EntityPlayer, handIn: EnumHand): ActionResult<ItemStack> {
+        if (playerIn.isSneaking && worldIn.isRemote) {
+            clearClientCache()
         }
-        info.type = type
-        writeInfo(stack, info)
-        ModNetwork.initConnection(player, grid, info)
-        return EnumActionResult.SUCCESS
-      }
-    }
-    return EnumActionResult.PASS
-  }
-
-  override fun doesSneakBypassUse(
-      itemstack: ItemStack,
-      world: IBlockAccess?,
-      pos: BlockPos?,
-      player: EntityPlayer?
-  ): Boolean {
-    return true
-  }
-
-  fun getInfo(stack: ItemStack): MemoryInfo {
-    if (stack.item != this)
-        throw ClassCastException("Cannot cast ${stack.item.javaClass.name} to ${javaClass.name}")
-
-    // Initialize NBT if it isn't already a thing
-    if (stack.tagCompound == null) {
-      stack.tagCompound = NBTTagCompound()
-    }
-    val compound = stack.tagCompound!!
-    if (!compound.hasKey("gui")) {
-      compound.setByte("gui", GuiScale.DYNAMIC.ordinal.toByte())
-    }
-    if (!compound.hasKey("selectedIndex", Constants.NBT.TAG_COMPOUND)) {
-      compound.setTag("selectedIndex", NBTTagCompound())
+        return super.onItemRightClick(worldIn, playerIn, handIn)
     }
 
-    return MemoryInfo(
-        selectedEntry = readP2PLocation(compound.getCompoundTag("selectedIndex")),
-        frequency = compound.getShort("frequency"),
-        mode = BetterMemoryCardModes.values()[compound.getInteger("mode")],
-        guiScale = GuiScale.values()[compound.getByte("gui").toInt()])
-  }
+    override fun onItemUse(player: EntityPlayer, w: World, pos: BlockPos, hand: EnumHand, side: EnumFacing, hx: Float, hy: Float, hz: Float): EnumActionResult {
+        if (!w.isRemote) {
+            val te = w.getTileEntity(pos)
+            if (te is IGridHost && te.getGridNode(AEPartLocation.fromFacing(side)) != null) {
+                val part = getPart(w, pos, hx, hy, hz)
+                val grid = part?.gridNode?.grid ?: return EnumActionResult.FAIL
 
-  fun writeInfo(stack: ItemStack, info: MemoryInfo) {
-    if (stack.item != this)
-        throw ClassCastException("Cannot cast ${stack.item.javaClass.name} to ${javaClass.name}")
+                if (grid is ISecurityGrid && !grid.hasPermission(player, SecurityPermissions.BUILD)) {
+                    return EnumActionResult.FAIL
+                }
 
-    if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
-    val compound = stack.tagCompound!!
-    compound.setTag("selectedIndex", writeP2PLocation(info.selectedEntry))
-    compound.setShort("frequency", info.frequency)
-    compound.setInteger("mode", info.mode.ordinal)
-    compound.setByte("gui", info.guiScale.ordinal.toByte())
-  }
+                val stack = player.getHeldItem(hand)
+                val info = getInfo(stack)
+                val type: Int
+                if (part is PartP2PTunnel<*>) {
+                    type = part.getTypeIndex()
+                    info.selectedEntry = part.toLoc()
+                } else {
+                    type = TUNNEL_ANY
+                    info.selectedEntry = null
+                }
+                info.type = type
+                writeInfo(stack, info)
+                ModNetwork.initConnection(player, grid, info)
+                return EnumActionResult.SUCCESS
+            }
+        }
+        return EnumActionResult.PASS
+    }
+
+    override fun doesSneakBypassUse(itemstack: ItemStack, world: IBlockAccess?, pos: BlockPos?, player: EntityPlayer?): Boolean {
+        return true
+    }
+
+    fun getInfo(stack: ItemStack): MemoryInfo {
+        if (stack.item != this) throw ClassCastException("Cannot cast ${stack.item.javaClass.name} to ${javaClass.name}")
+
+        // Initialize NBT if it isn't already a thing
+        if (stack.tagCompound == null) {
+            stack.tagCompound = NBTTagCompound()
+        }
+        val compound = stack.tagCompound!!
+        if (!compound.hasKey("gui")) {
+            compound.setByte("gui", GuiScale.DYNAMIC.ordinal.toByte())
+        }
+        if (!compound.hasKey("selectedIndex", Constants.NBT.TAG_COMPOUND)) {
+            compound.setTag("selectedIndex", NBTTagCompound())
+        }
+
+        return MemoryInfo(
+            selectedEntry = readP2PLocation(compound.getCompoundTag("selectedIndex")),
+            frequency = compound.getShort("frequency"),
+            mode = BetterMemoryCardModes.values()[compound.getInteger("mode")],
+            guiScale = GuiScale.values()[compound.getByte("gui").toInt()]
+        )
+
+    }
+
+    fun writeInfo(stack: ItemStack, info: MemoryInfo) {
+        if (stack.item != this) throw ClassCastException("Cannot cast ${stack.item.javaClass.name} to ${javaClass.name}")
+
+        if (stack.tagCompound == null) stack.tagCompound = NBTTagCompound()
+        val compound = stack.tagCompound!!
+        compound.setTag("selectedIndex", writeP2PLocation(info.selectedEntry))
+        compound.setShort("frequency", info.frequency)
+        compound.setInteger("mode", info.mode.ordinal)
+        compound.setByte("gui", info.guiScale.ordinal.toByte())
+    }
 }

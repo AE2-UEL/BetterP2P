@@ -12,12 +12,9 @@ import net.minecraftforge.fml.relauncher.Side
 
 @Mod.EventBusSubscriber(modid = Tags.MODID, value = [Side.CLIENT])
 object ModelHandler {
-  @JvmStatic
-  @SubscribeEvent
-  fun registerModels(event: ModelRegistryEvent) {
-    ModelLoader.setCustomModelResourceLocation(
-        ItemAdvancedMemoryCard,
-        0,
-        ModelResourceLocation(ResourceLocation(Tags.MODID, "advanced_memory_card"), "inventory"))
-  }
+    @JvmStatic
+    @SubscribeEvent
+    fun registerModels(event: ModelRegistryEvent) {
+        ModelLoader.setCustomModelResourceLocation(ItemAdvancedMemoryCard, 0, ModelResourceLocation(ResourceLocation(Tags.MODID, "advanced_memory_card"), "inventory"))
+    }
 }
