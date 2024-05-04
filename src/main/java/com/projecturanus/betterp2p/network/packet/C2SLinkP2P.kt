@@ -28,11 +28,13 @@ class ServerLinkP2PHandler : IMessageHandler<C2SLinkP2P, IMessage?> {
             return null
         }
 
-        val state = ModNetwork.playerState[ctx.serverHandler.player.uniqueID] ?: return null
-        val result = state.gridCache.linkP2P(message.input!!, message.output!!)
-
-        if (result != null) {
-            ModNetwork.requestP2PUpdate(ctx.serverHandler.player)
+        val player = ctx.serverHandler.player
+        val state = ModNetwork.playerState[player.uniqueID] ?: return null
+        player.server?.addScheduledTask {
+            val result = state.gridCache.linkP2P(message.input!!, message.output!!)
+            if (result != null) {
+                ModNetwork.requestP2PUpdate(player)
+            }
         }
 
         return null
