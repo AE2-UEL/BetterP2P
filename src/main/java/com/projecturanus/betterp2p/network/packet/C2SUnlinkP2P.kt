@@ -36,10 +36,13 @@ class ServerUnlinkP2PHandler : IMessageHandler<C2SUnlinkP2P, S2COpenGui?> {
         if (message.p2p == null) {
             return null
         }
-        val cache = ModNetwork.playerState[ctx.serverHandler.player.uniqueID] ?: return null
 
-        cache.gridCache.unlinkP2P(message.p2p!!)
-        ModNetwork.requestP2PUpdate(ctx.serverHandler.player)
+        val player = ctx.serverHandler.player
+        val cache = ModNetwork.playerState[player.uniqueID] ?: return null
+        player.server?.addScheduledTask {
+            cache.gridCache.unlinkP2P(message.p2p!!)
+            ModNetwork.requestP2PUpdate(player)
+        }
 
         return null
     }
